@@ -177,7 +177,8 @@ function Invoke-InlineAppRestart {
   Start-Sleep -Seconds 2
   Stop-BeachdayNodeProcesses -DeployPath $DeployPath -Port $Port -Log $Log | Out-Null
   if (-not (Stop-PortListeners -Port $Port -MaxRounds 10 -Log $Log)) {
-    throw "Port $Port still in use."
+    $who = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+    throw "Port $Port still in use. App task may run as SYSTEM while deploy runs as $who. Re-run install-deploy-setup.ps1 as Administrator."
   }
   if (Test-AppTaskExists $AppTaskName) {
     Start-AppTask -Name $AppTaskName
