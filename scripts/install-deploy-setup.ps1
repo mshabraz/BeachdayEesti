@@ -2,55 +2,64 @@
 <#
   One-time server setup for reliable git-push deploys.
 
-  Installs:
-  - Firewall rule for port 8080
-  - BeachdayEesti scheduled task (SYSTEM, starts at boot)
-  - BeachdayEesti-Restart helper task (SYSTEM, triggered by GitHub Actions deploy)
-  - Permissions so the GitHub runner can trigger the restart helper
-  - Optional: configure GitHub Actions runner service to LocalSystem
+  Registers scheduled tasks under the same account that runs GitHub Actions jobs
+  on this machine (typically COMPUTERNAME$), so deploy can schtasks /Run /End freely.
 
-  Run on the LAN server as Administrator:
+  Run ONCE as Administrator on the LAN server:
     cd C:\BeachdayEesti
+    git fetch origin
+    git reset --hard origin/main
     .\scripts\install-deploy-setup.ps1
 #>
 param(
   [int]$Port = 8080,
   [string]$DeployPath = 'C:\BeachdayEesti',
+  [string]$TaskAccount = '',
   [switch]$ConfigureRunnerAsLocalSystem
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'ps-task-utils.ps1')
+
 $ProjectRoot = if (Test-Path $DeployPath) { $DeployPath } else { Split-Path -Parent $PSScriptRoot }
 $NodePath = (Get-Command node).Source
 $AppTaskName = 'BeachdayEesti'
 $RestartTaskName = 'BeachdayEesti-Restart'
 
-function Grant-ScheduledTaskTriggerAccess {
-  param([string]$TaskName)
-  $taskFile = Join-Path $env:SystemRoot "System32\Tasks\$TaskName"
-  if (-not (Test-Path $taskFile)) {
-    Write-Warning "Task file not found: $taskFile"
-    return
-  }
-  $acl = Get-Acl $taskFile
-  $sids = @(
-    'S-1-5-11', # Authenticated Users
-    'S-1-5-20', # NETWORK SERVICE
-    'S-1-5-18'  # SYSTEM
-  )
-  foreach ($sid in $sids) {
-    $id = New-Object System.Security.Principal.SecurityIdentifier($sid)
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-      $id, 'FullControl', 'Allow'
-    )
-    $acl.AddAccessRule($rule)
-  }
-  Set-Acl $taskFile $acl
-  Write-Host "Granted trigger access on task $TaskName"
+if (-not $TaskAccount) {
+  $TaskAccount = "$env:COMPUTERNAME`$"
 }
+
+function Get-RunnerServiceAccount {
+  $runnerSvc = Get-Service -Name 'actions.runner.*' -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $runnerSvc) { return $null }
+  $qc = sc.exe qc $runnerSvc.Name 2>$null
+  $line = $qc | Where-Object { $_ -match 'SERVICE_START_NAME' }
+  if ($line -match ':\s*(.+)$') { return $matches[1].Trim() }
+  return $null
+}
+
+function Stop-ExistingApp {
+  foreach ($name in @($AppTaskName, $RestartTaskName)) {
+    Stop-AppTask -Name $name | Out-Null
+    Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+  }
+  Stop-BeachdayNodeProcesses -DeployPath $ProjectRoot -Port $Port | Out-Null
+  Stop-PortListeners -Port $Port -MaxRounds 10 | Out-Null
+}
+
+Write-Host "==> Task account: $TaskAccount"
+$runnerSvcAccount = Get-RunnerServiceAccount
+if ($runnerSvcAccount) {
+  Write-Host "==> Runner service account: $runnerSvcAccount"
+}
+Write-Host '==> GitHub Actions jobs on this runner typically run as:' "$env:COMPUTERNAME`$"
 
 Write-Host '==> Firewall'
 & "$ProjectRoot\scripts\configure-firewall.ps1" -Port $Port
+
+Write-Host '==> Stop old app/tasks (SYSTEM or previous accounts)'
+Stop-ExistingApp
 
 Write-Host '==> App task (boot)'
 $appAction = New-ScheduledTaskAction -Execute $NodePath -Argument 'server/index.js' -WorkingDirectory $ProjectRoot
@@ -63,9 +72,9 @@ $appSettings = New-ScheduledTaskSettingsSet `
   -RestartInterval (New-TimeSpan -Minutes 1) `
   -ExecutionTimeLimit ([TimeSpan]::Zero) `
   -MultipleInstances IgnoreNew
-$appPrincipal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+$appPrincipal = New-ScheduledTaskPrincipal -UserId $TaskAccount -LogonType ServiceAccount -RunLevel Highest
 Register-ScheduledTask -TaskName $AppTaskName -Action $appAction -Trigger $appTrigger -Settings $appSettings -Principal $appPrincipal -Force | Out-Null
-Write-Host "Registered $AppTaskName (SYSTEM, AtStartup)"
+Write-Host "Registered $AppTaskName ($TaskAccount, AtStartup)"
 
 Write-Host '==> Restart helper task (deploy trigger)'
 $restartScript = Join-Path $ProjectRoot 'scripts\restart-service.ps1'
@@ -79,10 +88,9 @@ $restartSettings = New-ScheduledTaskSettingsSet `
   -StartWhenAvailable `
   -ExecutionTimeLimit (New-TimeSpan -Minutes 10) `
   -MultipleInstances IgnoreNew
-$restartPrincipal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+$restartPrincipal = New-ScheduledTaskPrincipal -UserId $TaskAccount -LogonType ServiceAccount -RunLevel Highest
 Register-ScheduledTask -TaskName $RestartTaskName -Action $restartAction -Settings $restartSettings -Principal $restartPrincipal -Force | Out-Null
-Grant-ScheduledTaskTriggerAccess -TaskName $RestartTaskName
-Write-Host "Registered $RestartTaskName (SYSTEM, on-demand for deploy)"
+Write-Host "Registered $RestartTaskName ($TaskAccount, on-demand for deploy)"
 
 if ($ConfigureRunnerAsLocalSystem) {
   Write-Host '==> Configure GitHub runner service as LocalSystem'
@@ -92,28 +100,31 @@ if ($ConfigureRunnerAsLocalSystem) {
     sc.exe config $runnerSvc.Name obj= LocalSystem | Out-Null
     Start-Service $runnerSvc.Name
     Write-Host "Runner service $($runnerSvc.Name) now runs as LocalSystem"
+    Write-Host 'Re-register tasks as SYSTEM after switching runner to LocalSystem:'
+    Write-Host "  .\scripts\install-deploy-setup.ps1 -TaskAccount SYSTEM"
   } else {
-    Write-Warning 'GitHub runner service not found. Install the runner first, then re-run with -ConfigureRunnerAsLocalSystem'
+    Write-Warning 'GitHub runner service not found.'
   }
 }
 
-Write-Host '==> Test restart helper'
-$testExit = schtasks.exe /Run /TN $RestartTaskName
-Write-Host "schtasks /Run exit=$LASTEXITCODE"
+Write-Host '==> Test restart helper (same as GitHub deploy will do)'
+$runExit = Invoke-External -FilePath 'schtasks.exe' -ArgumentList @('/Run', '/TN', $RestartTaskName)
+Write-Host "schtasks /Run exit=$runExit"
 Start-Sleep -Seconds 8
 try {
   $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 10
   if ($health.ok -eq $true) {
     Write-Host "PASS /health ok=$($health.ok) version=$($health.version)"
   } else {
-    Write-Warning "Health returned but ok=$($health.ok). Check logs\restart-service.log"
+    throw "Health ok=$($health.ok)"
   }
 } catch {
-  Write-Warning "Health check failed: $($_.Exception.Message). Check logs\restart-service.log"
+  Write-Error "Setup test failed: $($_.Exception.Message). Check logs\restart-service.log"
+  exit 1
 }
 
 Write-Host ''
 Write-Host 'Setup complete.'
 Write-Host "LAN URL: http://192.168.1.25:$Port"
+Write-Host "Tasks run as: $TaskAccount"
 Write-Host 'Git push to main will deploy via GitHub Actions.'
-Write-Host 'If deploy still fails, re-run with: .\scripts\install-deploy-setup.ps1 -ConfigureRunnerAsLocalSystem'

@@ -23,11 +23,9 @@ git reset --hard origin/main
 .\scripts\install-deploy-setup.ps1
 ```
 
-If deploy still cannot restart the app:
+This registers tasks as **`COMPUTERNAME$`** (same account GitHub Actions jobs use on self-hosted runners), so deploy can `schtasks /Run` and kill its own Node process.
 
-```powershell
-.\scripts\install-deploy-setup.ps1 -ConfigureRunnerAsLocalSystem
-```
+**Important:** Re-run this after any change from SYSTEM tasks to fix `schtasks /Run exit=1`.
 
 Then restart the GitHub Actions runner service from `services.msc`.
 
@@ -35,8 +33,8 @@ Then restart the GitHub Actions runner service from `services.msc`.
 
 | Component | Name | Account | Purpose |
 |-----------|------|---------|---------|
-| App task | `BeachdayEesti` | SYSTEM | Starts Node at boot |
-| Restart helper | `BeachdayEesti-Restart` | SYSTEM | Stop/start app during deploy |
+| App task | `BeachdayEesti` | `COMPUTERNAME$` | Starts Node at boot |
+| Restart helper | `BeachdayEesti-Restart` | `COMPUTERNAME$` | Stop/start app during deploy |
 | Firewall | TCP 8080 | — | LAN access |
 
 ## Verify setup

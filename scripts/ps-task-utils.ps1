@@ -133,12 +133,57 @@ function Start-AppServer {
     -RedirectStandardError $stderr
 }
 
+function Test-IsRunnerJobAccount {
+  $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+  $name = $identity.Name
+  if ($name -match '\$$') { return $true }
+  if ($name -like "*$env:COMPUTERNAME*") { return $true }
+  return $false
+}
+
 function Test-IsPrivilegedDeployContext {
   $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
   $principal = New-Object Security.Principal.WindowsPrincipal($identity)
   if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { return $true }
+  if (Test-IsRunnerJobAccount) { return $true }
   $user = $identity.Name
   return ($user -like '*SYSTEM*' -or $user -like '*LOCAL SERVICE*' -or $user -like '*NETWORK SERVICE*')
+}
+
+function Invoke-RestartTask {
+  param(
+    [string]$RestartTaskName = 'BeachdayEesti-Restart',
+    [scriptblock]$Log = { param($Message) Write-Verbose $Message }
+  )
+  for ($attempt = 1; $attempt -le 3; $attempt++) {
+    Invoke-External -FilePath 'schtasks.exe' -ArgumentList @('/End', '/TN', (Get-TaskNameArg $RestartTaskName)) | Out-Null
+    Start-Sleep -Seconds 2
+    $runExit = Invoke-External -FilePath 'schtasks.exe' -ArgumentList @('/Run', '/TN', (Get-TaskNameArg $RestartTaskName))
+    & $Log "schtasks /Run $RestartTaskName attempt $attempt exit=$runExit"
+    if ($runExit -eq 0) { return $true }
+    Start-Sleep -Seconds 2
+  }
+  return $false
+}
+
+function Invoke-InlineAppRestart {
+  param(
+    [string]$DeployPath = 'C:\BeachdayEesti',
+    [int]$Port = 8080,
+    [string]$AppTaskName = 'BeachdayEesti',
+    [scriptblock]$Log = { param($Message) Write-Verbose $Message }
+  )
+  Stop-AppTask -Name $AppTaskName | Out-Null
+  Start-Sleep -Seconds 2
+  Stop-BeachdayNodeProcesses -DeployPath $DeployPath -Port $Port -Log $Log | Out-Null
+  if (-not (Stop-PortListeners -Port $Port -MaxRounds 10 -Log $Log)) {
+    throw "Port $Port still in use."
+  }
+  if (Test-AppTaskExists $AppTaskName) {
+    Start-AppTask -Name $AppTaskName
+  } else {
+    Start-AppServer -Root $DeployPath
+  }
 }
 
 function Invoke-AppRestart {
@@ -150,46 +195,28 @@ function Invoke-AppRestart {
     [scriptblock]$Log = { param($Message) Write-Verbose $Message }
   )
 
-  if (Test-AppTaskExists $RestartTaskName) {
-    & $Log "Triggering elevated restart task $RestartTaskName"
-    $runExit = Invoke-External -FilePath 'schtasks.exe' -ArgumentList @('/Run', '/TN', (Get-TaskNameArg $RestartTaskName))
-    & $Log "schtasks /Run $RestartTaskName exit=$runExit"
-    if ($runExit -ne 0) {
-      throw "Could not trigger $RestartTaskName (exit $runExit). Run scripts\install-deploy-setup.ps1 as Administrator."
-    }
-    Start-Sleep -Seconds 3
-    if (Wait-ForServer -Port $Port -MaxAttempts 30 -Log $Log) { return $true }
-    throw "Restart task ran but /health did not become ready."
-  }
+  $hasRestartTask = (Test-AppTaskExists $RestartTaskName) -or (Test-Path (Join-Path $env:SystemRoot "System32\Tasks\$RestartTaskName"))
 
-  # Runner may not query tasks but can still trigger them - try /Run once before failing
-  $taskFile = Join-Path $env:SystemRoot "System32\Tasks\$RestartTaskName"
-  if (Test-Path $taskFile) {
-    & $Log "Restart task file present; attempting schtasks /Run despite query limitations"
-    $runExit = Invoke-External -FilePath 'schtasks.exe' -ArgumentList @('/Run', '/TN', (Get-TaskNameArg $RestartTaskName))
-    & $Log "schtasks /Run $RestartTaskName exit=$runExit"
-    if ($runExit -eq 0 -and (Wait-ForServer -Port $Port -MaxAttempts 30 -Log $Log)) { return $true }
+  if ($hasRestartTask) {
+    & $Log "Triggering restart task $RestartTaskName"
+    if (Invoke-RestartTask -RestartTaskName $RestartTaskName -Log $Log) {
+      Start-Sleep -Seconds 3
+      if (Wait-ForServer -Port $Port -MaxAttempts 30 -Log $Log) { return $true }
+      & $Log 'Restart task ran but health check failed; trying inline restart'
+    } else {
+      & $Log 'schtasks /Run failed; trying inline restart fallback'
+    }
   }
 
   if (Test-IsPrivilegedDeployContext) {
-    & $Log 'Running inline restart (privileged context)'
-    Stop-AppTask -Name $AppTaskName | Out-Null
-    Start-Sleep -Seconds 2
-    Stop-BeachdayNodeProcesses -DeployPath $DeployPath -Port $Port -Log $Log | Out-Null
-    if (-not (Stop-PortListeners -Port $Port -MaxRounds 10 -Log $Log)) {
-      throw "Port $Port still in use."
-    }
-    if (Test-AppTaskExists $AppTaskName) {
-      Start-AppTask -Name $AppTaskName
-    } else {
-      Start-AppServer -Root $DeployPath
-    }
+    & $Log 'Running inline restart fallback'
+    Invoke-InlineAppRestart -DeployPath $DeployPath -Port $Port -AppTaskName $AppTaskName -Log $Log
     return (Wait-ForServer -Port $Port -MaxAttempts 25 -Log $Log)
   }
 
   throw @"
 Deploy cannot restart the app from account '$([Security.Principal.WindowsIdentity]::GetCurrent().Name)'.
-Run this ONCE as Administrator on the server:
+Run ONCE as Administrator on the server:
   cd C:\BeachdayEesti
   git fetch origin
   git reset --hard origin/main
