@@ -33,12 +33,16 @@ jobs:
       - name: Verify deploy prerequisites
         shell: powershell
         run: |
-          $restartTask = schtasks.exe /Query /TN "BeachdayEesti-Restart" 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Warning "BeachdayEesti-Restart task missing. Run scripts\install-deploy-setup.ps1 as Administrator on the server."
+          $ErrorActionPreference = 'Continue'
+          $taskFile = "$env:SystemRoot\System32\Tasks\BeachdayEesti-Restart"
+          if (Test-Path $taskFile) {
+            Write-Host "Restart helper task file present: $taskFile"
           } else {
-            Write-Host "Restart helper task present."
+            Write-Warning "BeachdayEesti-Restart not found. Run scripts\install-deploy-setup.ps1 as Administrator on the server."
           }
+          schtasks.exe /Query /TN "BeachdayEesti-Restart" 2>&1 | Out-Null
+          Write-Host "schtasks /Query exit=$LASTEXITCODE (runner may lack query rights; deploy still attempts /Run)"
+          exit 0
 
       - name: Deploy to C:\BeachdayEesti
         shell: powershell

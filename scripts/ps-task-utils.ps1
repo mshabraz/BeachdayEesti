@@ -22,6 +22,8 @@ function Test-AppTaskExists {
   param([string]$Name)
   $task = Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue
   if ($task) { return $true }
+  $taskFile = Join-Path $env:SystemRoot "System32\Tasks\$Name"
+  if (Test-Path $taskFile) { return $true }
   return (Invoke-External -FilePath 'schtasks.exe' -ArgumentList @('/Query', '/TN', (Get-TaskNameArg $Name))) -eq 0
 }
 
@@ -158,6 +160,15 @@ function Invoke-AppRestart {
     Start-Sleep -Seconds 3
     if (Wait-ForServer -Port $Port -MaxAttempts 30 -Log $Log) { return $true }
     throw "Restart task ran but /health did not become ready."
+  }
+
+  # Runner may not query tasks but can still trigger them - try /Run once before failing
+  $taskFile = Join-Path $env:SystemRoot "System32\Tasks\$RestartTaskName"
+  if (Test-Path $taskFile) {
+    & $Log "Restart task file present; attempting schtasks /Run despite query limitations"
+    $runExit = Invoke-External -FilePath 'schtasks.exe' -ArgumentList @('/Run', '/TN', (Get-TaskNameArg $RestartTaskName))
+    & $Log "schtasks /Run $RestartTaskName exit=$runExit"
+    if ($runExit -eq 0 -and (Wait-ForServer -Port $Port -MaxAttempts 30 -Log $Log)) { return $true }
   }
 
   if (Test-IsPrivilegedDeployContext) {
