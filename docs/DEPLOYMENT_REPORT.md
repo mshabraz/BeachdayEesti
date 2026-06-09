@@ -1,67 +1,92 @@
-# BeachdayEesti Deployment Report
+# BeachdayEesti — LAN deployment guide
 
-Generated: 2026-06-09
+## How deploy works
 
-## Target
+```
+git push main  →  GitHub Actions  →  self-hosted runner  →  deploy.ps1
+                                                              ├ robocopy → C:\BeachdayEesti
+                                                              ├ npm ci + sync
+                                                              └ schtasks /Run BeachdayEesti-Restart (SYSTEM)
+                                                                    └ restart-service.ps1 → /health OK
+```
 
-| Item | Value |
-|------|-------|
-| LAN URL | http://192.168.1.25:8080 |
-| Deploy path | `C:\BeachdayEesti` |
-| Runner | `BeachdayEestiLAN` (self-hosted, Windows) |
-| Workflow | `.github/workflows/deploy-lan.yml` |
+The GitHub runner account **cannot** kill processes owned by SYSTEM. Deploy therefore triggers an elevated **restart helper task** that runs as SYSTEM.
 
-## Deployment diagnostics
+## One-time server setup (required)
 
-After each deploy, check:
-
-- `C:\BeachdayEesti\cache\deployment.json` — commit, timestamp, runner
-- `C:\BeachdayEesti\logs\deploy.log` — robocopy, npm, sync, restart steps
-- `C:\BeachdayEesti\logs\runner.log` — runner service status (CI step)
-- `http://192.168.1.25:8080/health` — live status, cache age, beach count, API availability
-
-## One-time server setup (Administrator)
+Run **once** as **Administrator** on the LAN server (`192.168.1.25`):
 
 ```powershell
 cd C:\BeachdayEesti
-.\scripts\configure-firewall.ps1 -Port 8080
-.\scripts\install-startup.ps1 -Port 8080
-Start-ScheduledTask -TaskName BeachdayEesti
+git fetch origin
+git reset --hard origin/main
+.\scripts\install-deploy-setup.ps1
 ```
 
-Scheduled task runs as **SYSTEM**, starts at boot, auto-restarts on crash.
+If deploy still cannot restart the app:
 
-## Verification checklist
+```powershell
+.\scripts\install-deploy-setup.ps1 -ConfigureRunnerAsLocalSystem
+```
 
-| Check | How | Status |
-|-------|-----|--------|
-| Push to main triggers deploy | GitHub Actions → Deploy to LAN | Run after push |
-| Runner online | GitHub → Settings → Actions → Runners | Verify Idle/Active |
-| Files at deploy path | `dir C:\BeachdayEesti` | Manual |
-| deployment.json updated | `Get-Content C:\BeachdayEesti\cache\deployment.json` | Manual |
-| Health endpoint | `Invoke-RestMethod http://127.0.0.1:8080/health` | CI + manual |
-| LAN access | Browser on another PC: `http://192.168.1.25:8080` | Manual |
-| Reboot persistence | Reboot server, confirm site returns | Manual |
-| Logs present | `dir C:\BeachdayEesti\logs` | Manual |
+Then restart the GitHub Actions runner service from `services.msc`.
+
+## What gets installed
+
+| Component | Name | Account | Purpose |
+|-----------|------|---------|---------|
+| App task | `BeachdayEesti` | SYSTEM | Starts Node at boot |
+| Restart helper | `BeachdayEesti-Restart` | SYSTEM | Stop/start app during deploy |
+| Firewall | TCP 8080 | — | LAN access |
+
+## Verify setup
+
+```powershell
+schtasks /Query /TN BeachdayEesti
+schtasks /Query /TN BeachdayEesti-Restart
+schtasks /Run /TN BeachdayEesti-Restart
+Start-Sleep 8
+Invoke-RestMethod http://127.0.0.1:8080/health
+```
+
+Expected: JSON with `ok: True`.
+
+## Day-to-day workflow
+
+1. Edit code locally, commit, `git push origin main`
+2. Watch https://github.com/mshabraz/BeachdayEesti/actions
+3. Site updates at http://192.168.1.25:8080
+
+**Do not** `git pull` in `C:\BeachdayEesti` for deploys — GitHub Actions robocopies the repo there.
+
+## Manual recovery
+
+```powershell
+cd C:\BeachdayEesti
+.\scripts\recover-server.ps1          # git reset + restart
+.\scripts\restart-app.ps1             # restart only
+```
+
+## Logs
+
+| File | Contents |
+|------|----------|
+| `C:\BeachdayEesti\logs\deploy.log` | GitHub Actions deploy steps |
+| `C:\BeachdayEesti\logs\restart-service.log` | Elevated restarts |
+| `C:\BeachdayEesti\logs\runner.log` | Runner status each deploy |
 
 ## Common failures
 
-| Symptom | Root cause | Fix |
-|---------|------------|-----|
-| Workflow queued forever | Runner offline or wrong labels | Start runner service; labels: `self-hosted`, `Windows` |
-| `node` not found | Node not on PATH for runner account | Install Node 18+ system-wide |
-| Port 8080 blocked | Firewall rule missing | `.\scripts\configure-firewall.ps1 -Port 8080` |
-| Site down after reboot | No scheduled task | `.\scripts\install-startup.ps1` |
-| TLS errors in sync | Corporate proxy | Set `TLS_INSECURE=true` in `.env` (last resort) |
-| Old workflow runs fail | Stale `runs-on` label in old runs | Cancel old runs; use new workflow run |
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `Scheduled task not found` | Setup not run | `install-deploy-setup.ps1` |
+| `Port 8080 still in use` | Runner can't kill SYSTEM node | Install restart helper (setup script) |
+| `schtasks /Run exit=1` | No permission on restart task | Re-run setup script |
+| `/health` returns HTML | Old Node still running | `schtasks /Run /TN BeachdayEesti-Restart` |
+| `git pull` conflicts | Drift in deploy folder | `git reset --hard origin/main` |
 
-## Optional configuration
+## Target URLs
 
-In `C:\BeachdayEesti\.env`:
-
-```
-SCHEDULED_SYNC_MINUTES=0   # 0=off, 30/60/120
-TLS_INSECURE=false
-DEPLOY_COMMIT=             # set by deploy.ps1
-DEPLOY_TIME=               # set by deploy.ps1
-```
+- LAN: http://192.168.1.25:8080
+- Health: http://192.168.1.25:8080/health
+- Deploy path: `C:\BeachdayEesti`

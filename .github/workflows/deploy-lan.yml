@@ -30,6 +30,16 @@ jobs:
           Add-Content -Path "$logsDir\runner.log" -Value $line
           Write-Host $line
 
+      - name: Verify deploy prerequisites
+        shell: powershell
+        run: |
+          $restartTask = schtasks.exe /Query /TN "BeachdayEesti-Restart" 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "BeachdayEesti-Restart task missing. Run scripts\install-deploy-setup.ps1 as Administrator on the server."
+          } else {
+            Write-Host "Restart helper task present."
+          }
+
       - name: Deploy to C:\BeachdayEesti
         shell: powershell
         run: |

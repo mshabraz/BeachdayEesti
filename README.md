@@ -59,9 +59,7 @@ After the runner service `actions.runner.mshabraz-BeachdayEesti.BeachdayEestiLAN
 git clone https://github.com/mshabraz/BeachdayEesti.git C:\BeachdayEesti
 cd C:\BeachdayEesti
 .\scripts\install.ps1
-.\scripts\configure-firewall.ps1 -Port 8080
-.\scripts\install-startup.ps1 -Port 8080
-Start-ScheduledTask -TaskName BeachdayEesti
+.\scripts\install-deploy-setup.ps1
 ```
 
 ### Automatic deploy
@@ -71,7 +69,7 @@ Every push to `main` triggers `.github/workflows/deploy-lan.yml`, which:
 1. Runs on runner **BeachdayEestiLAN**
 2. Copies code to `C:\BeachdayEesti`
 3. Runs `npm ci`, refreshes weather cache
-4. Restarts the `BeachdayEesti` scheduled task
+4. Triggers `BeachdayEesti-Restart` (SYSTEM) to stop/start the app safely
 5. Verifies `http://127.0.0.1:8080/api/health`
 
 Manual deploy from the server:
