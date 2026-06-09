@@ -13,7 +13,7 @@ jobs:
   deploy:
     name: Deploy on BeachdayEestiLAN
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
-    runs-on: [self-hosted, Windows, BeachdayEestiLAN]
+    runs-on: [self-hosted, Windows]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
