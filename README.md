@@ -28,13 +28,16 @@ Self-hosted runner: **BeachdayEestiLAN** (on the Windows LAN server at `192.168.
 
 **Important:** The runner *name* is not a job label. The workflow uses `runs-on: [self-hosted, Windows]` — those two labels must appear on the runner in GitHub (Settings → Actions → Runners).
 
-If jobs stay **Queued**:
+If jobs stay **Queued**, check the log line **Requested labels**:
 
-1. Open https://github.com/mshabraz/BeachdayEesti/settings/actions/runners — runner must be **Idle** (green), not Offline.
-2. Confirm labels include `self-hosted` and `Windows`.
-3. On the server, run `.\scripts\runner-troubleshoot.ps1` (Administrator).
-4. Cancel old queued runs, then **Run workflow** again or push a new commit.
-5. If re-registering: `.\config.cmd --url https://github.com/mshabraz/BeachdayEesti --token TOKEN --name BeachdayEestiLAN --labels self-hosted,Windows`
+| Log shows | Fix |
+|---|---|
+| `BeachdayEestiLAN` in requested labels | **Old workflow run** — Cancel it and start a **new** run (do not Re-run #3). Or add label `BeachdayEestiLAN` to the runner in GitHub. |
+| Only `self-hosted`, `Windows` but still queued | Runner Offline — restart service or run `.\run.cmd` in the runner folder. |
+
+**Fastest fix for stuck run #3:** GitHub → Settings → Actions → Runners → BeachdayEestiLAN → **⋯ → Edit labels** → add `BeachdayEestiLAN` → Save. The queued job should start within seconds.
+
+Then cancel old runs and use **Actions → Deploy to LAN → Run workflow** (creates a new run on latest `main`, which only needs `self-hosted` + `Windows`).
 
 ### First-time push from dev machine
 
