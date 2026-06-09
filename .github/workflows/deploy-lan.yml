@@ -57,6 +57,7 @@ jobs:
         id: health
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Continue'
           $health = $null
           for ($i = 1; $i -le 10; $i++) {
             try {
@@ -68,29 +69,23 @@ jobs:
             }
             Start-Sleep -Seconds 2
           }
-          try {
-            if (-not $health -or $health.ok -ne $true) {
-              if (Test-Path "C:\BeachdayEesti\logs\node-stderr.log") {
-                Write-Host "--- node-stderr.log (tail) ---"
-                Get-Content "C:\BeachdayEesti\logs\node-stderr.log" -Tail 20
-              }
-              throw "Health check failed after retries"
+          if (-not $health -or $health.ok -ne $true) {
+            if (Test-Path "C:\BeachdayEesti\logs\deploy.log") {
+              Write-Host "--- deploy.log (tail) ---"
+              Get-Content "C:\BeachdayEesti\logs\deploy.log" -Tail 15
             }
-            $beaches = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/beaches" -TimeoutSec 20
-            $deploy = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/deployment" -TimeoutSec 10
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "health_ok=true"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "beach_count=$($beaches.count)"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "observation_source=$($beaches.observationSource)"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "deploy_commit=$($deploy.commit)"
-            Write-Host "BeachdayEesti healthy commit=$($deploy.commit) beaches=$($beaches.count)"
-            Write-Host "LAN: http://192.168.1.25:8080"
-          } catch {
             Add-Content -Path $env:GITHUB_OUTPUT -Value "health_ok=false"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "beach_count=0"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "observation_source=unknown"
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "deploy_commit=unknown"
-            throw
+            throw "Health check failed after retries"
           }
+          $beaches = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/beaches" -TimeoutSec 20
+          $deploy = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/deployment" -TimeoutSec 10
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "health_ok=true"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "beach_count=$($beaches.count)"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "observation_source=$($beaches.observationSource)"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "deploy_commit=$($deploy.commit)"
+          Write-Host "BeachdayEesti healthy commit=$($deploy.commit) beaches=$($beaches.count)"
+          Write-Host "LAN: http://192.168.1.25:8080"
+          exit 0
 
       - name: Generate agent status brief
         if: always()

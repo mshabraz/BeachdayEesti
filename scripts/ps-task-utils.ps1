@@ -195,28 +195,33 @@ function Invoke-AppRestart {
     [scriptblock]$Log = { param($Message) Write-Verbose $Message }
   )
 
-  $hasRestartTask = (Test-AppTaskExists $RestartTaskName) -or (Test-Path (Join-Path $env:SystemRoot "System32\Tasks\$RestartTaskName"))
+  # Self-hosted runner jobs on this PC run as COMPUTERNAME$ and cannot trigger SYSTEM tasks.
+  # Inline restart works reliably for that account; use it first.
+  if (Test-IsRunnerJobAccount -or Test-IsPrivilegedDeployContext) {
+    & $Log 'Running inline app restart'
+    Invoke-InlineAppRestart -DeployPath $DeployPath -Port $Port -AppTaskName $AppTaskName -Log $Log
+    if (Wait-ForServer -Port $Port -MaxAttempts 25 -Log $Log) {
+      $global:LASTEXITCODE = 0
+      return $true
+    }
+    & $Log 'Inline restart health check failed'
+  }
 
+  $hasRestartTask = (Test-AppTaskExists $RestartTaskName) -or (Test-Path (Join-Path $env:SystemRoot "System32\Tasks\$RestartTaskName"))
   if ($hasRestartTask) {
-    & $Log "Triggering restart task $RestartTaskName"
+    & $Log "Trying restart task $RestartTaskName"
     if (Invoke-RestartTask -RestartTaskName $RestartTaskName -Log $Log) {
       Start-Sleep -Seconds 3
-      if (Wait-ForServer -Port $Port -MaxAttempts 30 -Log $Log) { return $true }
-      & $Log 'Restart task ran but health check failed; trying inline restart'
-    } else {
-      & $Log 'schtasks /Run failed; trying inline restart fallback'
+      if (Wait-ForServer -Port $Port -MaxAttempts 30 -Log $Log) {
+        $global:LASTEXITCODE = 0
+        return $true
+      }
     }
   }
 
-  if (Test-IsPrivilegedDeployContext) {
-    & $Log 'Running inline restart fallback'
-    Invoke-InlineAppRestart -DeployPath $DeployPath -Port $Port -AppTaskName $AppTaskName -Log $Log
-    return (Wait-ForServer -Port $Port -MaxAttempts 25 -Log $Log)
-  }
-
   throw @"
-Deploy cannot restart the app from account '$([Security.Principal.WindowsIdentity]::GetCurrent().Name)'.
-Run ONCE as Administrator on the server:
+Deploy could not restart the app from account '$([Security.Principal.WindowsIdentity]::GetCurrent().Name)'.
+Run ONCE as Administrator:
   cd C:\BeachdayEesti
   git fetch origin
   git reset --hard origin/main
