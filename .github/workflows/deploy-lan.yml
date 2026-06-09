@@ -43,10 +43,25 @@ jobs:
         id: health
         shell: powershell
         run: |
-          Start-Sleep -Seconds 5
+          $health = $null
+          for ($i = 1; $i -le 10; $i++) {
+            try {
+              $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/health" -TimeoutSec 10
+              if ($health.ok -eq $true) { break }
+              Write-Host "Attempt $i: ok=$($health.ok)"
+            } catch {
+              Write-Host "Attempt $i: $($_.Exception.Message)"
+            }
+            Start-Sleep -Seconds 2
+          }
           try {
-            $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/health" -TimeoutSec 20
-            if (-not $health.ok) { throw "Health check failed" }
+            if (-not $health -or $health.ok -ne $true) {
+              if (Test-Path "C:\BeachdayEesti\logs\node-stderr.log") {
+                Write-Host "--- node-stderr.log (tail) ---"
+                Get-Content "C:\BeachdayEesti\logs\node-stderr.log" -Tail 20
+              }
+              throw "Health check failed after retries"
+            }
             $beaches = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/beaches" -TimeoutSec 20
             $deploy = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/deployment" -TimeoutSec 10
             Add-Content -Path $env:GITHUB_OUTPUT -Value "health_ok=true"

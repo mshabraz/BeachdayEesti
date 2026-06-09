@@ -11,23 +11,25 @@ let syncing = false;
 let lastSyncStarted = null;
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'public')));
 
-async function buildHealthPayload() {
+async function buildHealthPayload({ probeApi = false } = {}) {
   const cache = await readCachedData();
   const deployment = await readDeploymentInfo();
   const cacheAgeMinutes = cache?.syncedAt
     ? Math.round((Date.now() - new Date(cache.syncedAt).getTime()) / 60000)
     : null;
 
-  let apiAvailable = false;
-  try {
-    await fetchJson(`${config.envirApiBase}/v1/combinedWeatherData/frontPageWeatherToday`, {
-      headers: { accept: 'application/json' },
-    });
-    apiAvailable = true;
-  } catch {
-    apiAvailable = false;
+  let apiAvailable = null;
+  if (probeApi) {
+    try {
+      await fetchJson(`${config.envirApiBase}/v1/combinedWeatherData/frontPageWeatherToday`, {
+        headers: { accept: 'application/json' },
+        timeoutMs: 3000,
+      });
+      apiAvailable = true;
+    } catch {
+      apiAvailable = false;
+    }
   }
 
   return {
@@ -72,6 +74,18 @@ async function healthHandler(_req, res) {
 
 app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
+
+app.get('/health/deep', async (_req, res) => {
+  try {
+    const payload = await buildHealthPayload({ probeApi: true });
+    res.json(payload);
+  } catch (error) {
+    logger.error('health', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/beaches', async (_req, res) => {
   const data = await readCachedData();
@@ -162,6 +176,9 @@ async function bootstrap() {
     logger.info('startup', `BeachdayEesti listening on ${config.host}:${config.port}`);
     console.log(`BeachdayEesti running at http://${config.host}:${config.port}`);
     console.log(`LAN access: http://192.168.1.25:${config.port}`);
+  }).on('error', (error) => {
+    logger.error('startup', 'Failed to bind port', { error: error.message, port: config.port });
+    process.exit(1);
   });
 }
 

@@ -8,7 +8,7 @@ function fetchText(url, options = {}) {
     const lib = parsed.protocol === 'https:' ? https : http;
     const requestOptions = {
       headers: options.headers || {},
-      timeout: options.timeout || 30000,
+      timeout: options.timeoutMs || options.timeout || 30000,
     };
 
     if (parsed.protocol === 'https:') {
