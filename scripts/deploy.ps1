@@ -21,20 +21,68 @@ function Write-DeployLog($message) {
   Write-Host $line
 }
 
+function Test-AppTaskExists {
+  param([string]$Name)
+  schtasks /Query /TN $Name 2>$null | Out-Null
+  return $LASTEXITCODE -eq 0
+}
+
+function Stop-AppTask {
+  param([string]$Name)
+  if (-not (Test-AppTaskExists $Name)) { return $false }
+  schtasks /End /TN $Name 2>$null | Out-Null
+  Write-DeployLog "schtasks /End exit=$LASTEXITCODE"
+  try {
+    Stop-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue | Out-Null
+  } catch { }
+  return $true
+}
+
+function Start-AppTask {
+  param([string]$Name)
+  try {
+    Start-ScheduledTask -TaskName $Name -ErrorAction Stop | Out-Null
+  } catch {
+    schtasks /Run /TN $Name 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not start scheduled task $Name" }
+  }
+}
+
+function Stop-PortListeners {
+  param([int]$Port, [int]$MaxRounds = 8)
+  for ($round = 1; $round -le $MaxRounds; $round++) {
+    $connections = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+    if ($connections.Count -eq 0) {
+      Write-DeployLog "Port $Port is free (round $round)"
+      return $true
+    }
+    foreach ($connection in $connections) {
+      $processId = $connection.OwningProcess
+      taskkill /F /PID $processId 2>$null | Out-Null
+      $killExit = $LASTEXITCODE
+      Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+      Write-DeployLog "Stopped PID $processId on port $Port (round $round, taskkill exit=$killExit)"
+    }
+    Start-Sleep -Seconds 2
+  }
+  $still = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+  return ($still.Count -eq 0)
+}
+
 function Wait-ForServer {
   param(
     [int]$Port = 8080,
-    [int]$MaxAttempts = 15,
+    [int]$MaxAttempts = 20,
     [int]$DelaySeconds = 2
   )
   for ($i = 1; $i -le $MaxAttempts; $i++) {
     try {
       $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 5
-      if ($health.ok -eq $true) {
-        Write-DeployLog "Server ready on attempt $i"
+      if ($health.ok -eq $true -or $health.service -eq 'BeachdayEesti') {
+        Write-DeployLog "Server ready on attempt $i (ok=$($health.ok) version=$($health.version))"
         return $true
       }
-      Write-DeployLog "Attempt ${i}: /health responded but ok=$($health.ok)"
+      Write-DeployLog "Attempt ${i}: /health responded but ok=$($health.ok) service=$($health.service)"
     } catch {
       Write-DeployLog "Attempt ${i}: server not ready ($($_.Exception.Message))"
     }
@@ -82,8 +130,8 @@ New-Item -ItemType Directory -Force -Path (Join-Path $DeployPath 'cache') | Out-
 
 Write-DeployLog "Deploy started commit=$CommitSha runner=$RunnerName user=$env:USERNAME"
 
-$excludeDirs = @('node_modules', '.git', 'cache')
-robocopy $SourcePath $DeployPath /MIR /XD $excludeDirs /NFL /NDL /NJH /NJS /NC /NS | Out-Null
+$excludeDirs = @('node_modules', '.git', 'cache', 'logs')
+robocopy $SourcePath $DeployPath /MIR /XD $excludeDirs /XF .env /NFL /NDL /NJH /NJS /NC /NS | Out-Null
 if ($LASTEXITCODE -ge 8) {
   Write-DeployLog "ERROR robocopy failed exit=$LASTEXITCODE"
   throw "robocopy failed with exit code $LASTEXITCODE"
@@ -130,28 +178,21 @@ node server/sync-cli.js
 Write-DeployLog 'sync-cli complete'
 
 Write-Step "Restarting service on port $Port"
-$connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-foreach ($connection in $connections) {
-  Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue
-  Write-DeployLog "Stopped process $($connection.OwningProcess) on port $Port"
+$hasTask = Stop-AppTask -Name $TaskName
+if ($hasTask) {
+  Write-DeployLog "Stopped scheduled task $TaskName before port cleanup"
+} else {
+  Write-DeployLog "Scheduled task $TaskName not found (schtasks /Query)"
 }
-Start-Sleep -Seconds 2
 
-$task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-if ($task) {
-  try {
-    Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
-    Start-ScheduledTask -TaskName $TaskName
-    Write-Step "Scheduled task '$TaskName' restarted"
-    Write-DeployLog "Scheduled task restarted"
-  } catch {
-    Write-Warning "Could not restart scheduled task: $($_.Exception.Message)"
-    Write-DeployLog "WARN scheduled task restart failed: $($_.Exception.Message)"
-    Start-AppServer -Root $DeployPath -Port $Port
-    Write-Step 'Started node server/index.js in background'
-    Write-DeployLog 'Started node in background (task restart failed)'
-  }
+if (-not (Stop-PortListeners -Port $Port)) {
+  throw "Port $Port is still in use after cleanup. Re-run scripts\install-startup.ps1 as Administrator, then redeploy."
+}
+
+if (Test-AppTaskExists $TaskName) {
+  Start-AppTask -Name $TaskName
+  Write-Step "Scheduled task '$TaskName' restarted"
+  Write-DeployLog "Scheduled task restarted via schtasks/Start-ScheduledTask"
 } else {
   Start-AppServer -Root $DeployPath -Port $Port
   Write-Step "No scheduled task found; started node server/index.js in background"
