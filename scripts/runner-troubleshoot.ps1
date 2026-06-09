@@ -37,7 +37,7 @@ Write-Host "   - Runner must show Idle (green), not Offline"
 Write-Host "   - Labels must include: self-hosted, Windows"
 
 Write-Host "`n5. If Offline, on the server in the runner folder run:"
-Write-Host "   .\run.cmd   # test interactively — should say 'Listening for Jobs'"
+Write-Host "   .\run.cmd   # test interactively - should say 'Listening for Jobs'"
 Write-Host "   # or re-register:"
 Write-Host "   .\config.cmd remove"
 Write-Host "   .\config.cmd --url https://github.com/$Repo --token <TOKEN> --name $RunnerName --labels self-hosted,Windows"

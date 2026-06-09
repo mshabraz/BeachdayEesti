@@ -62,4 +62,4 @@ if ($task) {
   Write-Host "Run scripts\install-startup.ps1 once as Administrator to enable reboot persistence."
 }
 
-Write-Step "Deploy complete — http://192.168.1.25:$Port"
+Write-Step "Deploy complete - http://192.168.1.25:$Port"
