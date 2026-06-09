@@ -1,0 +1,27 @@
+name: Deploy to LAN
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy on BeachdayEestiLAN
+    runs-on: [self-hosted, Windows, BeachdayEestiLAN]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to C:\BeachdayEesti
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}\scripts\deploy.ps1" -SourcePath "${{ github.workspace }}" -DeployPath "C:\BeachdayEesti"
+
+      - name: Health check
+        shell: pwsh
+        run: |
+          Start-Sleep -Seconds 3
+          $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/health" -TimeoutSec 15
+          if (-not $health.ok) { throw "Health check failed" }
+          Write-Host "BeachdayEesti is healthy at http://192.168.1.25:8080"

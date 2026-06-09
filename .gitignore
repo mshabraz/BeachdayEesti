@@ -1,0 +1,5 @@
+node_modules/
+cache/beach-conditions.json
+.env
+*.log
+.DS_Store
