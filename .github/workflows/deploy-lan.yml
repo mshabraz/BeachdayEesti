@@ -48,9 +48,9 @@ jobs:
             try {
               $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/health" -TimeoutSec 10
               if ($health.ok -eq $true) { break }
-              Write-Host "Attempt $i: ok=$($health.ok)"
+              Write-Host "Attempt ${i}: ok=$($health.ok)"
             } catch {
-              Write-Host "Attempt $i: $($_.Exception.Message)"
+              Write-Host "Attempt ${i}: $($_.Exception.Message)"
             }
             Start-Sleep -Seconds 2
           }

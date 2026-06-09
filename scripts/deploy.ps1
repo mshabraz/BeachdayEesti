@@ -34,9 +34,9 @@ function Wait-ForServer {
         Write-DeployLog "Server ready on attempt $i"
         return $true
       }
-      Write-DeployLog "Attempt $i: /health responded but ok=$($health.ok)"
+      Write-DeployLog "Attempt ${i}: /health responded but ok=$($health.ok)"
     } catch {
-      Write-DeployLog "Attempt $i: server not ready ($($_.Exception.Message))"
+      Write-DeployLog "Attempt ${i}: server not ready ($($_.Exception.Message))"
     }
     Start-Sleep -Seconds $DelaySeconds
   }
