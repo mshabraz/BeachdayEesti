@@ -15,11 +15,6 @@ const meta = document.getElementById('meta');
 const bestSection = document.getElementById('bestSection');
 const bestList = document.getElementById('bestList');
 const uvHeader = document.getElementById('uvHeader');
-const camModal = document.getElementById('camModal');
-const camTitle = document.getElementById('camTitle');
-const camBody = document.getElementById('camBody');
-const camProvider = document.getElementById('camProvider');
-const camClose = document.getElementById('camClose');
 
 const COL_COUNT_BASE = 14;
 
@@ -94,8 +89,9 @@ function renderBestBeaches() {
 }
 
 function renderCamCell(row) {
-  if (!row.camera?.available) return '<td class="cam-cell">—</td>';
-  return `<td class="cam-cell"><button type="button" class="cam-btn" data-beach="${escapeHtml(row.beach)}" data-url="${escapeHtml(row.camera.url)}" data-type="${escapeHtml(row.camera.type || 'external')}" data-provider="${escapeHtml(row.camera.provider || '')}" title="View camera">📷</button></td>`;
+  if (!row.camera?.available || !row.camera.url) return '<td class="cam-cell">—</td>';
+  const title = row.camera.provider ? `Camera: ${row.camera.provider}` : 'Open beach camera';
+  return `<td class="cam-cell"><a class="cam-link" href="${escapeHtml(row.camera.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">📷</a></td>`;
 }
 
 function renderRows() {
@@ -132,9 +128,6 @@ function renderRows() {
     )
     .join('');
 
-  document.querySelectorAll('.cam-btn').forEach((btn) => {
-    btn.addEventListener('click', () => openCamera(btn.dataset));
-  });
 }
 
 function escapeHtml(value) {
@@ -199,25 +192,6 @@ function applySortAndFilter() {
 function updateUvVisibility() {
   state.showUv = state.rows.some((row) => row.uv != null);
   if (uvHeader) uvHeader.style.display = state.showUv ? '' : 'none';
-}
-
-function openCamera(data) {
-  camTitle.textContent = `${data.beach} camera`;
-  camProvider.textContent = data.provider ? `Source: ${data.provider}` : '';
-  camBody.innerHTML = '';
-
-  const url = data.url;
-  const type = data.type || 'external';
-
-  if (type === 'hls' && url) {
-    camBody.innerHTML = `<video controls autoplay muted playsinline src="${escapeHtml(url)}"></video>`;
-  } else if (type === 'mjpeg' || type === 'snapshot') {
-    camBody.innerHTML = `<img src="${escapeHtml(url)}" alt="Beach camera" class="cam-image">`;
-  } else {
-    camBody.innerHTML = `<p>Live view opens on the provider site.</p><a href="${escapeHtml(url)}" target="_blank" rel="noopener">Open camera in new tab</a>`;
-  }
-
-  if (typeof camModal.showModal === 'function') camModal.showModal();
 }
 
 async function loadData() {
@@ -286,7 +260,6 @@ document.querySelectorAll('.filter-btn').forEach((btn) => {
 
 searchInput.addEventListener('input', applySortAndFilter);
 refreshBtn.addEventListener('click', syncData);
-camClose.addEventListener('click', () => camModal.close());
 
 loadData().catch((error) => {
   syncStatus.textContent = error.message;
