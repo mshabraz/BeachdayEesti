@@ -1,0 +1,45 @@
+{
+  "pirita": {
+    "available": true,
+    "type": "external",
+    "url": "https://ilm.ee/rand_pirita/kaamera1.php3",
+    "embedUrl": null,
+    "provider": "ilm.ee / Pirita TOP",
+    "note": "Harbour/beach area snapshot page",
+    "lastVerified": "2026-06-09"
+  },
+  "parnu-rannarajoon": {
+    "available": true,
+    "type": "external",
+    "url": "https://balticlivecam.com/cameras/estonia/parnu/parnu/",
+    "embedUrl": null,
+    "provider": "Baltic Live Cam",
+    "note": "External live cam page; embedding may be blocked",
+    "lastVerified": "2026-06-09"
+  },
+  "narva-joesuu": {
+    "available": true,
+    "type": "external",
+    "url": "https://balticlivecam.com/cameras/estonia/narva-joesuu/narva-joesuu/",
+    "embedUrl": null,
+    "provider": "Baltic Live Cam",
+    "lastVerified": "2026-06-09"
+  },
+  "kuressaare": {
+    "available": true,
+    "type": "external",
+    "url": "https://balticlivecam.com/cameras/estonia/saaremaa/kuressaare-marina/",
+    "embedUrl": null,
+    "provider": "Baltic Live Cam",
+    "note": "Marina/coastal view near Kuressaare",
+    "lastVerified": "2026-06-09"
+  },
+  "roomassaare": {
+    "available": true,
+    "type": "external",
+    "url": "https://balticlivecam.com/cameras/estonia/saaremaa/kuressaare-marina/",
+    "embedUrl": null,
+    "provider": "Baltic Live Cam",
+    "lastVerified": "2026-06-09"
+  }
+}

@@ -116,7 +116,9 @@ async function fetchWeatherBundle() {
 
   const seaEntry = normalizeEntries(seaForecastRaw)[0];
   const seaForecastText = seaEntry?.sisu || '';
-  const dayForecast = normalizeEntries(dayForecastRaw).find((item) => item.osa === 'day') || normalizeEntries(dayForecastRaw)[0];
+  const dayForecast =
+    normalizeEntries(dayForecastRaw).find((item) => item.osa === 'day') ||
+    normalizeEntries(dayForecastRaw)[0];
   const dayForecastPhenomenon = dayForecast?.ikoon || '';
 
   let latestUpdate = null;
@@ -134,6 +136,7 @@ async function fetchWeatherBundle() {
     meteoById,
     inlandWaterById,
     inlandMapById,
+    uvById,
     stationCatalog,
     seaForecastText,
     dayForecastPhenomenon,

@@ -20,28 +20,46 @@ jobs:
         with:
           persist-credentials: true
 
+      - name: Log runner status
+        shell: powershell
+        run: |
+          $logsDir = "C:\BeachdayEesti\logs"
+          New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
+          $runnerSvc = Get-Service -Name "actions.runner.*" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $line = "[$(Get-Date -Format 'o')] runner=$($runnerSvc.Name) status=$($runnerSvc.Status) sha=${{ github.sha }}"
+          Add-Content -Path "$logsDir\runner.log" -Value $line
+          Write-Host $line
+
       - name: Deploy to C:\BeachdayEesti
         shell: powershell
         run: |
-          & "${{ github.workspace }}\scripts\deploy.ps1" -SourcePath "${{ github.workspace }}" -DeployPath "C:\BeachdayEesti"
+          & "${{ github.workspace }}\scripts\deploy.ps1" `
+            -SourcePath "${{ github.workspace }}" `
+            -DeployPath "C:\BeachdayEesti" `
+            -CommitSha "${{ github.sha }}" `
+            -RunnerName "BeachdayEestiLAN"
 
       - name: Health check
         id: health
         shell: powershell
         run: |
-          Start-Sleep -Seconds 3
+          Start-Sleep -Seconds 5
           try {
-            $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/health" -TimeoutSec 15
+            $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/health" -TimeoutSec 20
             if (-not $health.ok) { throw "Health check failed" }
-            $beaches = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/beaches" -TimeoutSec 15
+            $beaches = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/beaches" -TimeoutSec 20
+            $deploy = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/deployment" -TimeoutSec 10
             Add-Content -Path $env:GITHUB_OUTPUT -Value "health_ok=true"
             Add-Content -Path $env:GITHUB_OUTPUT -Value "beach_count=$($beaches.count)"
             Add-Content -Path $env:GITHUB_OUTPUT -Value "observation_source=$($beaches.observationSource)"
-            Write-Host "BeachdayEesti is healthy at http://192.168.1.25:8080"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "deploy_commit=$($deploy.commit)"
+            Write-Host "BeachdayEesti healthy commit=$($deploy.commit) beaches=$($beaches.count)"
+            Write-Host "LAN: http://192.168.1.25:8080"
           } catch {
             Add-Content -Path $env:GITHUB_OUTPUT -Value "health_ok=false"
             Add-Content -Path $env:GITHUB_OUTPUT -Value "beach_count=0"
             Add-Content -Path $env:GITHUB_OUTPUT -Value "observation_source=unknown"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "deploy_commit=unknown"
             throw
           }
 

@@ -27,7 +27,17 @@ function stationLon(raw) {
   return dmsToDecimal(raw.PikkusKraad, raw.PikkusMinut, raw.PikkusSekund);
 }
 
+function parsePointCoordinates(raw) {
+  const wkt = raw.coordinates || raw.Coordinates || '';
+  const match = String(wkt).match(/POINT\s*\(\s*([0-9.+-]+)\s+([0-9.+-]+)\s*\)/i);
+  if (match) {
+    return { longitude: Number(match[1]), latitude: Number(match[2]) };
+  }
+  return {};
+}
+
 function normalizeWeatherRecord(raw) {
+  const point = parsePointCoordinates(raw);
   const phenomenon =
     raw.nahtusEng ||
     raw.nahtusEst ||
@@ -50,11 +60,11 @@ function normalizeWeatherRecord(raw) {
     relativeHumidity: parseEtNumber(raw.rhins),
     airPressure: parseEtNumber(raw.qffins),
     visibility: parseVisibility(raw.vis1ma),
-    uvIndex: parseEtNumber(raw.uv1ma),
+    uvIndex: parseEtNumber(raw.uv1ma ?? raw.uvreal),
     waterLevel: parseEtNumber(raw.wl1ha),
     updatedAt: raw.Time || raw.tains_aeg || raw.ws10ma_aeg || raw.pikkaeg || null,
-    latitude: stationLat(raw),
-    longitude: stationLon(raw),
+    latitude: stationLat(raw) ?? point.latitude ?? null,
+    longitude: stationLon(raw) ?? point.longitude ?? null,
   };
 }
 

@@ -37,6 +37,11 @@ h1 {
   font-size: 1.8rem;
 }
 
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
 .subtitle {
   margin: 0.35rem 0 0;
   color: var(--muted);
@@ -86,6 +91,53 @@ main {
   padding: 0 1.5rem 1.5rem;
 }
 
+.best-section {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.best-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.best-list li {
+  font-size: 0.92rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.filter-btn {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.filter-btn:hover,
+.filter-btn.active {
+  border-color: var(--accent);
+  background: #e3fafc;
+  color: var(--accent-dark);
+}
+
+.filter-clear {
+  color: var(--muted);
+}
+
 .table-wrap {
   overflow: auto;
   background: var(--card);
@@ -97,7 +149,7 @@ main {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1200px;
+  min-width: 1280px;
 }
 
 th,
@@ -116,6 +168,10 @@ th {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+}
+
+th.no-sort {
+  cursor: default;
 }
 
 th.sorted-asc::after {
@@ -159,14 +215,81 @@ tbody tr:hover {
   border-radius: 999px;
   text-align: center;
   font-weight: 700;
-  background: #edf2ff;
+  color: #fff;
 }
+
+.score-pill.excellent { background: var(--excellent); }
+.score-pill.good { background: var(--good); }
+.score-pill.okay { background: var(--okay); }
+.score-pill.poor { background: var(--poor); }
+.score-pill.skip { background: var(--skip); }
 
 .reason {
   display: block;
   color: var(--muted);
   font-size: 0.78rem;
   margin-top: 0.15rem;
+}
+
+.cam-cell {
+  text-align: center;
+}
+
+.cam-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.cam-modal {
+  border: none;
+  border-radius: 12px;
+  padding: 0;
+  max-width: min(720px, 92vw);
+}
+
+.cam-modal::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.cam-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.cam-modal-header h3 {
+  margin: 0;
+}
+
+#camClose {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.cam-modal-body {
+  padding: 1rem;
+  min-height: 120px;
+}
+
+.cam-modal-body video,
+.cam-modal-body img,
+.cam-image {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.cam-provider {
+  margin: 0;
+  padding: 0 1rem 1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .meta {

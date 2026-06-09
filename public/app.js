@@ -3,6 +3,8 @@ const state = {
   filtered: [],
   sortKey: 'score',
   sortDir: 'desc',
+  activeFilter: null,
+  showUv: true,
 };
 
 const tableBody = document.getElementById('tableBody');
@@ -10,9 +12,28 @@ const searchInput = document.getElementById('search');
 const refreshBtn = document.getElementById('refreshBtn');
 const syncStatus = document.getElementById('syncStatus');
 const meta = document.getElementById('meta');
+const bestSection = document.getElementById('bestSection');
+const bestList = document.getElementById('bestList');
+const uvHeader = document.getElementById('uvHeader');
+const camModal = document.getElementById('camModal');
+const camTitle = document.getElementById('camTitle');
+const camBody = document.getElementById('camBody');
+const camProvider = document.getElementById('camProvider');
+const camClose = document.getElementById('camClose');
+
+const COL_COUNT_BASE = 14;
+
+function colCount() {
+  return state.showUv ? COL_COUNT_BASE + 1 : COL_COUNT_BASE;
+}
 
 function formatTemp(value) {
   return value == null ? '—' : `${value.toFixed(1)}°C`;
+}
+
+function formatWater(row) {
+  if (row.waterTempDisplay) return escapeHtml(row.waterTempDisplay);
+  return formatTemp(row.waterTemp);
 }
 
 function formatNumber(value, suffix = '') {
@@ -27,14 +48,63 @@ function formatDate(value) {
 }
 
 function recClass(recommendation) {
-  return recommendation.toLowerCase().replace(' ', '-');
+  return recommendation.toLowerCase().replace(/\s+/g, '-');
+}
+
+function scoreClass(score) {
+  if (score >= 80) return 'excellent';
+  if (score >= 65) return 'good';
+  if (score >= 50) return 'okay';
+  if (score >= 35) return 'poor';
+  return 'skip';
+}
+
+function passesFilter(row, filter) {
+  switch (filter) {
+    case 'warm-water':
+      return row.waterTemp != null && row.waterTemp >= 17;
+    case 'low-wind':
+      return (row.wind ?? 99) <= 5 && (row.gusts ?? 99) <= 8;
+    case 'family':
+      return row.score >= 55 && (row.wind ?? 99) <= 7 && (row.rain ?? 99) <= 0.5;
+    case 'hottest':
+      return row.airTemp != null && row.airTemp >= 18;
+    case 'sea':
+      return row.type === 'coastal';
+    case 'lake':
+      return row.type === 'lake';
+    default:
+      return true;
+  }
+}
+
+function renderBestBeaches() {
+  const top = [...state.rows].sort((a, b) => b.score - a.score).slice(0, 5);
+  if (top.length === 0) {
+    bestSection.hidden = true;
+    return;
+  }
+  bestSection.hidden = false;
+  bestList.innerHTML = top
+    .map(
+      (row) =>
+        `<li><span class="score-pill ${scoreClass(row.score)}">${row.score}</span> <strong>${escapeHtml(row.beach)}</strong> — ${escapeHtml(row.weather || row.recommendation)}</li>`
+    )
+    .join('');
+}
+
+function renderCamCell(row) {
+  if (!row.camera?.available) return '<td class="cam-cell">—</td>';
+  return `<td class="cam-cell"><button type="button" class="cam-btn" data-beach="${escapeHtml(row.beach)}" data-url="${escapeHtml(row.camera.url)}" data-type="${escapeHtml(row.camera.type || 'external')}" data-provider="${escapeHtml(row.camera.provider || '')}" title="View camera">📷</button></td>`;
 }
 
 function renderRows() {
   if (state.filtered.length === 0) {
-    tableBody.innerHTML = '<tr><td colspan="14">No beaches match your search.</td></tr>';
+    tableBody.innerHTML = `<tr><td colspan="${colCount()}">No beaches match your search or filters.</td></tr>`;
     return;
   }
+
+  const uvCell = (row) => (state.showUv ? `<td>${formatNumber(row.uv)}</td>` : '');
 
   tableBody.innerHTML = state.filtered
     .map(
@@ -44,26 +114,31 @@ function renderRows() {
         <td>${escapeHtml(row.region)}</td>
         <td><span class="type-badge ${row.type}">${escapeHtml(row.type)}</span></td>
         <td>${formatTemp(row.airTemp)}</td>
-        <td>${formatTemp(row.waterTemp)}</td>
+        <td title="${escapeHtml(row.waterTempSource || '')}${row.waterTempConfidence ? ' (' + row.waterTempConfidence + ')' : ''}">${formatWater(row)}</td>
         <td>${formatNumber(row.wind, ' m/s')}</td>
         <td>${formatNumber(row.gusts, ' m/s')}</td>
         <td>${escapeHtml(row.direction || '—')}</td>
-        <td>${escapeHtml(row.weather || '—')}</td>
+        <td title="${escapeHtml(row.weatherRaw || '')}">${escapeHtml(row.weather || '—')}</td>
         <td>${formatNumber(row.rain, ' mm')}</td>
-        <td>${formatNumber(row.uv)}</td>
-        <td><span class="score-pill">${row.score}</span></td>
+        ${uvCell(row)}
+        <td><span class="score-pill ${scoreClass(row.score)}">${row.score}</span></td>
         <td>
           <span class="rec ${recClass(row.recommendation)}">${escapeHtml(row.recommendation)}</span>
           <span class="reason">${escapeHtml(row.reason || '')}</span>
         </td>
+        ${renderCamCell(row)}
         <td>${formatDate(row.lastUpdated)}</td>
       </tr>`
     )
     .join('');
+
+  document.querySelectorAll('.cam-btn').forEach((btn) => {
+    btn.addEventListener('click', () => openCamera(btn.dataset));
+  });
 }
 
 function escapeHtml(value) {
-  return String(value)
+  return String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -71,6 +146,7 @@ function escapeHtml(value) {
 }
 
 function compareValues(a, b, key) {
+  if (key === 'cam') return 0;
   const left = a[key];
   const right = b[key];
 
@@ -89,12 +165,14 @@ function applySortAndFilter() {
   const query = searchInput.value.trim().toLowerCase();
   state.filtered = state.rows
     .filter((row) => {
+      if (state.activeFilter && !passesFilter(row, state.activeFilter)) return false;
       if (!query) return true;
       const haystack = [
         row.beach,
         row.region,
         row.type,
         row.weather,
+        row.weatherRaw,
         row.recommendation,
         row.reason,
         row.nearestStation,
@@ -118,6 +196,30 @@ function applySortAndFilter() {
   renderRows();
 }
 
+function updateUvVisibility() {
+  state.showUv = state.rows.some((row) => row.uv != null);
+  if (uvHeader) uvHeader.style.display = state.showUv ? '' : 'none';
+}
+
+function openCamera(data) {
+  camTitle.textContent = `${data.beach} camera`;
+  camProvider.textContent = data.provider ? `Source: ${data.provider}` : '';
+  camBody.innerHTML = '';
+
+  const url = data.url;
+  const type = data.type || 'external';
+
+  if (type === 'hls' && url) {
+    camBody.innerHTML = `<video controls autoplay muted playsinline src="${escapeHtml(url)}"></video>`;
+  } else if (type === 'mjpeg' || type === 'snapshot') {
+    camBody.innerHTML = `<img src="${escapeHtml(url)}" alt="Beach camera" class="cam-image">`;
+  } else {
+    camBody.innerHTML = `<p>Live view opens on the provider site.</p><a href="${escapeHtml(url)}" target="_blank" rel="noopener">Open camera in new tab</a>`;
+  }
+
+  if (typeof camModal.showModal === 'function') camModal.showModal();
+}
+
 async function loadData() {
   const response = await fetch('/api/beaches');
   if (!response.ok) {
@@ -125,7 +227,9 @@ async function loadData() {
   }
   const payload = await response.json();
   state.rows = payload.beaches || [];
-  syncStatus.textContent = `Last sync: ${formatDate(payload.syncedAt)}`;
+  updateUvVisibility();
+  renderBestBeaches();
+  syncStatus.textContent = `Last synced: ${formatDate(payload.syncedAt)}`;
   meta.textContent = `${payload.count} beaches · source: ${payload.observationSource}${
     payload.warnings?.length ? ' · ' + payload.warnings.join(' · ') : ''
   }`;
@@ -142,7 +246,7 @@ async function syncData() {
       throw new Error(payload.error || 'Sync failed');
     }
     await loadData();
-    syncStatus.textContent = `Synced ${formatDate(payload.syncedAt)}`;
+    syncStatus.textContent = `Last synced: ${formatDate(payload.syncedAt)}`;
   } catch (error) {
     syncStatus.textContent = error.message;
   } finally {
@@ -151,6 +255,7 @@ async function syncData() {
 }
 
 document.querySelectorAll('th[data-key]').forEach((th) => {
+  if (th.classList.contains('no-sort')) return;
   th.addEventListener('click', () => {
     const key = th.dataset.key;
     if (state.sortKey === key) {
@@ -163,10 +268,27 @@ document.querySelectorAll('th[data-key]').forEach((th) => {
   });
 });
 
+document.querySelectorAll('.filter-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const filter = btn.dataset.filter;
+    if (filter === 'clear') {
+      state.activeFilter = null;
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+    } else {
+      state.activeFilter = state.activeFilter === filter ? null : filter;
+      document.querySelectorAll('.filter-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.filter === state.activeFilter);
+      });
+    }
+    applySortAndFilter();
+  });
+});
+
 searchInput.addEventListener('input', applySortAndFilter);
 refreshBtn.addEventListener('click', syncData);
+camClose.addEventListener('click', () => camModal.close());
 
 loadData().catch((error) => {
   syncStatus.textContent = error.message;
-  tableBody.innerHTML = '<tr><td colspan="14">No data yet. Click Sync now.</td></tr>';
+  tableBody.innerHTML = `<tr><td colspan="${colCount()}">No data yet. Click Sync now.</td></tr>`;
 });

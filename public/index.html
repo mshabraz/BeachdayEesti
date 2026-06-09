@@ -20,6 +20,21 @@
   </header>
 
   <main>
+    <section id="bestSection" class="best-section" hidden>
+      <h2>Best beaches today</h2>
+      <ul id="bestList" class="best-list"></ul>
+    </section>
+
+    <div id="filters" class="filters" role="group" aria-label="Quick filters">
+      <button type="button" class="filter-btn" data-filter="warm-water">Warm water</button>
+      <button type="button" class="filter-btn" data-filter="low-wind">Low wind</button>
+      <button type="button" class="filter-btn" data-filter="family">Family-friendly</button>
+      <button type="button" class="filter-btn" data-filter="hottest">Hottest today</button>
+      <button type="button" class="filter-btn" data-filter="sea">Sea</button>
+      <button type="button" class="filter-btn" data-filter="lake">Lake</button>
+      <button type="button" class="filter-btn filter-clear" data-filter="clear">Clear filters</button>
+    </div>
+
     <div class="table-wrap">
       <table id="beachTable">
         <thead>
@@ -34,22 +49,32 @@
             <th data-key="direction">Direction</th>
             <th data-key="weather">Weather</th>
             <th data-key="rain">Rain</th>
-            <th data-key="uv">UV</th>
+            <th data-key="uv" id="uvHeader">UV</th>
             <th data-key="score">Score</th>
             <th data-key="recommendation">Recommendation</th>
+            <th data-key="cam" class="no-sort">Cam</th>
             <th data-key="lastUpdated">Last Updated</th>
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="14">Loading cached data…</td></tr>
+          <tr><td colspan="15">Loading cached data…</td></tr>
         </tbody>
       </table>
     </div>
     <p id="meta" class="meta"></p>
   </main>
 
+  <dialog id="camModal" class="cam-modal">
+    <div class="cam-modal-header">
+      <h3 id="camTitle">Beach camera</h3>
+      <button type="button" id="camClose" aria-label="Close">×</button>
+    </div>
+    <div id="camBody" class="cam-modal-body"></div>
+    <p id="camProvider" class="cam-provider"></p>
+  </dialog>
+
   <footer class="footer">
-    Data: Estonian Environment Agency via publicapi.envir.ee (docs: ilmmicroservice.envir.ee/api_doc). Manual sync only.
+    Data: Estonian Environment Agency via publicapi.envir.ee. Manual sync primary; optional scheduled sync via SCHEDULED_SYNC_MINUTES.
   </footer>
 
   <script src="app.js"></script>
