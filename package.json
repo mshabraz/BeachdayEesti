@@ -1,6 +1,6 @@
 {
   "name": "beachdayeesti",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "BeachdayEesti — Estonian beach conditions and decision support",
   "main": "server/index.js",
   "scripts": {
