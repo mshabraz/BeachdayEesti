@@ -1,7 +1,7 @@
 ﻿# BeachdayEesti - Agent Status Brief
 
 > Auto-generated after each push to `main`. Feed this file to prompt-generating agents.
-> Last updated: 2026-06-09T14:37:42Z
+> Last updated: 2026-06-09T14:40:35Z
 
 ## Project summary
 
@@ -17,7 +17,7 @@
 
 | Field | Value |
 |---|---|
-| Commit | `af067bb6425199319edf77e13b15b5ce1524fbdc` |
+| Commit | `36ee082bdaafcb139f1cc06ee7ac1168fe9d4b90` |
 | Deploy job | failure |
 | Health check | not_run |
 | Beaches in cache | 0 |
