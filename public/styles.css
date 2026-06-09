@@ -304,6 +304,13 @@ tbody tr:hover {
   font-size: 0.82rem;
 }
 
+.deploy-marker {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .header,
   main,
