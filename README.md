@@ -26,7 +26,7 @@ Repository: [github.com/mshabraz/BeachdayEesti](https://github.com/mshabraz/Beac
 
 Self-hosted runner: **BeachdayEestiLAN** (on the Windows LAN server at `192.168.1.25`)
 
-**Important:** The runner *name* is not a job label. The workflow uses `runs-on: [self-hosted, Windows]` — those two labels must appear on the runner in GitHub (Settings → Actions → Runners).
+**Runner service note:** The runner uses Windows PowerShell (`powershell`), not PowerShell 7 (`pwsh`). Install Node.js for the **Network Service** / SYSTEM account PATH, or ensure Node is in `C:\Program Files\nodejs`.
 
 If jobs stay **Queued**, check the log line **Requested labels**:
 
