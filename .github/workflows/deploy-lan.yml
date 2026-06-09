@@ -3,15 +3,22 @@ name: Deploy to LAN
 on:
   push:
     branches: [main, master]
+
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   deploy:
     name: Deploy on BeachdayEestiLAN
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: [self-hosted, Windows, BeachdayEestiLAN]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Deploy to C:\BeachdayEesti
         shell: pwsh
@@ -19,9 +26,49 @@ jobs:
           & "${{ github.workspace }}\scripts\deploy.ps1" -SourcePath "${{ github.workspace }}" -DeployPath "C:\BeachdayEesti"
 
       - name: Health check
+        id: health
         shell: pwsh
         run: |
           Start-Sleep -Seconds 3
-          $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/health" -TimeoutSec 15
-          if (-not $health.ok) { throw "Health check failed" }
-          Write-Host "BeachdayEesti is healthy at http://192.168.1.25:8080"
+          try {
+            $health = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/health" -TimeoutSec 15
+            if (-not $health.ok) { throw "Health check failed" }
+            $beaches = Invoke-RestMethod -Uri "http://127.0.0.1:8080/api/beaches" -TimeoutSec 15
+            echo "health_ok=true" >> $env:GITHUB_OUTPUT
+            echo "beach_count=$($beaches.count)" >> $env:GITHUB_OUTPUT
+            echo "observation_source=$($beaches.observationSource)" >> $env:GITHUB_OUTPUT
+            Write-Host "BeachdayEesti is healthy at http://192.168.1.25:8080"
+          } catch {
+            echo "health_ok=false" >> $env:GITHUB_OUTPUT
+            echo "beach_count=0" >> $env:GITHUB_OUTPUT
+            echo "observation_source=unknown" >> $env:GITHUB_OUTPUT
+            throw
+          }
+
+      - name: Generate agent status brief
+        if: always()
+        shell: pwsh
+        run: |
+          $deployStatus = if ("${{ job.status }}" -eq "success") { "success" } else { "failure" }
+          $healthOk = "${{ steps.health.outputs.health_ok }}"
+          if (-not $healthOk) { $healthOk = "not_run" }
+          & "${{ github.workspace }}\scripts\generate-agent-status.ps1" `
+            -CommitSha "${{ github.sha }}" `
+            -DeployStatus $deployStatus `
+            -HealthOk $healthOk `
+            -BeachCount ${{ steps.health.outputs.beach_count || 0 }} `
+            -ObservationSource "${{ steps.health.outputs.observation_source || 'unknown' }}"
+
+      - name: Commit agent status
+        if: always()
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/AGENT_STATUS.md
+          if (git diff --staged --quiet) {
+            Write-Host "No agent status changes to commit"
+            exit 0
+          }
+          git commit -m "Update agent status after deploy [skip ci]"
+          git push
