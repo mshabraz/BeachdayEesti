@@ -33,3 +33,5 @@ Write-Host '- Auto-restarts on crash (1 min interval)'
 Write-Host '- MultipleInstances: IgnoreNew (deploy can restart safely)'
 Write-Host "Start now: Start-ScheduledTask -TaskName $TaskName"
 Write-Host 'If you previously used SYSTEM, re-run this script once to replace that task.'
+Write-Host 'After install: .\scripts\restart-app.ps1'
+Write-Host 'Do not git pull in C:\BeachdayEesti; use GitHub Actions deploy or .\scripts\align-with-origin.ps1'
