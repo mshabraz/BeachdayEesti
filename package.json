@@ -1,11 +1,12 @@
 {
   "name": "beachdayeesti",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "BeachdayEesti — Estonian beach conditions and decision support",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "sync": "node server/sync-cli.js"
+    "sync": "node server/sync-cli.js",
+    "verify-cameras": "node scripts/verify-cameras.js"
   },
   "engines": {
     "node": ">=18"

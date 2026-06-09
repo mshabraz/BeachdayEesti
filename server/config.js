@@ -35,6 +35,7 @@ module.exports = {
     process.env.FORECAST_XML ||
     'https://www.ilmateenistus.ee/ilma_andmed/xml/forecast.php?lang=eng',
   beachesFile: path.join(__dirname, '..', 'data', 'beaches.json'),
+  beachesMetaFile: path.join(__dirname, '..', 'data', 'beaches-meta.json'),
   beachCamsFile: path.join(__dirname, '..', 'data', 'beachcams.json'),
   cacheFile: path.join(__dirname, '..', 'cache', 'beach-conditions.json'),
   deploymentFile: path.join(__dirname, '..', 'cache', 'deployment.json'),

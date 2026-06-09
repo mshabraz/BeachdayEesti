@@ -1,0 +1,362 @@
+{
+  "generatedAt": "2026-06-09T16:13:54.095Z",
+  "totalConfigured": 17,
+  "availableCount": 17,
+  "brokenCount": 0,
+  "available": [
+    "pirita",
+    "stroomi",
+    "kaberneeme",
+    "kasmu",
+    "paralepa",
+    "parnu-rannarajoon",
+    "narva-joesuu",
+    "kuressaare",
+    "roomassaare",
+    "vosu",
+    "virtsu",
+    "kakumae",
+    "pikakari",
+    "toila-oru",
+    "kabli",
+    "kardla",
+    "mandjala"
+  ],
+  "broken": [],
+  "results": [
+    {
+      "id": "pirita",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_pirita/kaamera1.php3",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_pirita/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "stroomi",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_stroomi/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_stroomi/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "kaberneeme",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_kaberneeme/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_kaberneeme/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "kasmu",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/kasmu/kaamera.php3",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/kasmu/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "paralepa",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/haapsalu/kaamera.php3",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/haapsalu/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "parnu-rannarajoon",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_parnu/kaamera.php3",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_parnu/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "narva-joesuu",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_narva-joesuu/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_narva-joesuu/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "kuressaare",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_kuressaare/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_kuressaare/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "roomassaare",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_kuressaare/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_kuressaare/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "vosu",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/vosu/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/vosu/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "virtsu",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/virtsu/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/virtsu/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "kakumae",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_kakumae/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_kakumae/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "pikakari",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_pikakari/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_pikakari/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "toila-oru",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_toila/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_toila/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "kabli",
+      "provider": "ilm.ee",
+      "type": "external",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_kabli/",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "kardla",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_kardla/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_kardla/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "mandjala",
+      "provider": "ilm.ee",
+      "type": "snapshot",
+      "ok": true,
+      "checks": [
+        {
+          "label": "url",
+          "url": "https://ilm.ee/rand_mandjala/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "label": "snapshot",
+          "url": "https://ilm.ee/rand_mandjala/image.jpg",
+          "ok": true,
+          "status": 200
+        }
+      ]
+    }
+  ]
+}

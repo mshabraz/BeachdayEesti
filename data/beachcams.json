@@ -1,45 +1,176 @@
 {
   "pirita": {
     "available": true,
-    "type": "external",
+    "type": "snapshot",
     "url": "https://ilm.ee/rand_pirita/kaamera1.php3",
+    "snapshotUrl": "https://ilm.ee/rand_pirita/image.jpg",
     "embedUrl": null,
-    "provider": "ilm.ee / Pirita TOP",
-    "note": "Harbour/beach area snapshot page",
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "note": "Pirita beach snapshot viewer",
+    "lastVerified": "2026-06-09"
+  },
+  "stroomi": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_stroomi/",
+    "snapshotUrl": "https://ilm.ee/rand_stroomi/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "note": "Pelgurand / Stroomi coastal snapshot",
+    "lastVerified": "2026-06-09"
+  },
+  "kaberneeme": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_kaberneeme/",
+    "snapshotUrl": "https://ilm.ee/rand_kaberneeme/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "lastVerified": "2026-06-09"
+  },
+  "kasmu": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/kasmu/kaamera.php3",
+    "snapshotUrl": "https://ilm.ee/kasmu/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "lastVerified": "2026-06-09"
+  },
+  "paralepa": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/haapsalu/kaamera.php3",
+    "snapshotUrl": "https://ilm.ee/haapsalu/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "note": "Haapsalu / Paralepa area cam",
     "lastVerified": "2026-06-09"
   },
   "parnu-rannarajoon": {
     "available": true,
-    "type": "external",
-    "url": "https://balticlivecam.com/cameras/estonia/parnu/parnu/",
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_parnu/kaamera.php3",
+    "snapshotUrl": "https://ilm.ee/rand_parnu/image.jpg",
     "embedUrl": null,
-    "provider": "Baltic Live Cam",
-    "note": "External live cam page; embedding may be blocked",
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
     "lastVerified": "2026-06-09"
   },
   "narva-joesuu": {
     "available": true,
-    "type": "external",
-    "url": "https://balticlivecam.com/cameras/estonia/narva-joesuu/narva-joesuu/",
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_narva-joesuu/",
+    "snapshotUrl": "https://ilm.ee/rand_narva-joesuu/image.jpg",
     "embedUrl": null,
-    "provider": "Baltic Live Cam",
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
     "lastVerified": "2026-06-09"
   },
   "kuressaare": {
     "available": true,
-    "type": "external",
-    "url": "https://balticlivecam.com/cameras/estonia/saaremaa/kuressaare-marina/",
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_kuressaare/",
+    "snapshotUrl": "https://ilm.ee/rand_kuressaare/image.jpg",
     "embedUrl": null,
-    "provider": "Baltic Live Cam",
-    "note": "Marina/coastal view near Kuressaare",
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
     "lastVerified": "2026-06-09"
   },
   "roomassaare": {
     "available": true,
-    "type": "external",
-    "url": "https://balticlivecam.com/cameras/estonia/saaremaa/kuressaare-marina/",
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_kuressaare/",
+    "snapshotUrl": "https://ilm.ee/rand_kuressaare/image.jpg",
     "embedUrl": null,
-    "provider": "Baltic Live Cam",
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "note": "Same coastal cam as Kuressaare",
+    "lastVerified": "2026-06-09"
+  },
+  "vosu": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/vosu/",
+    "snapshotUrl": "https://ilm.ee/vosu/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "lastVerified": "2026-06-09"
+  },
+  "virtsu": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/virtsu/",
+    "snapshotUrl": "https://ilm.ee/virtsu/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "lastVerified": "2026-06-09"
+  },
+  "kakumae": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_kakumae/",
+    "snapshotUrl": "https://ilm.ee/rand_kakumae/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "lastVerified": "2026-06-09"
+  },
+  "pikakari": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_pikakari/",
+    "snapshotUrl": "https://ilm.ee/rand_pikakari/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "lastVerified": "2026-06-09"
+  },
+  "toila-oru": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_toila/",
+    "snapshotUrl": "https://ilm.ee/rand_toila/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "lastVerified": "2026-06-09"
+  },
+  "kabli": {
+    "available": true,
+    "type": "external",
+    "url": "https://ilm.ee/rand_kabli/",
+    "snapshotUrl": null,
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "note": "Rannailm page; no stable snapshot URL",
+    "lastVerified": "2026-06-09"
+  },
+  "kardla": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_kardla/",
+    "snapshotUrl": "https://ilm.ee/rand_kardla/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
+    "lastVerified": "2026-06-09"
+  },
+  "mandjala": {
+    "available": true,
+    "type": "snapshot",
+    "url": "https://ilm.ee/rand_mandjala/",
+    "snapshotUrl": "https://ilm.ee/rand_mandjala/image.jpg",
+    "embedUrl": null,
+    "provider": "ilm.ee",
+    "refreshSeconds": 90,
     "lastVerified": "2026-06-09"
   }
 }

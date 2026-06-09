@@ -5,16 +5,31 @@ const { haversineKm, windDirectionLabel } = require('../utils/geo');
 const logger = require('../utils/logger');
 const { fetchWeatherBundle, fetchNearestStation } = require('./envirClient');
 const { fetchObservations, fetchForecasts } = require('./xmlClient');
-const { scoreBeach } = require('./scoringService');
+const { scoreBeach, applyGlobalScoringContext } = require('./scoringService');
 const { parseWaveHeight } = require('./envirParser');
 const { resolveWaterTemperature } = require('./waterTempService');
 const { buildWeatherSummary } = require('./weatherSummaryService');
+const { buildTrend } = require('./trendService');
+const { estimateCrowd } = require('./crowdService');
+const { sunTimes, buildSunlightSummary } = require('./sunlightService');
 
 let beachCamsCache = null;
+let beachMetaCache = null;
 
 async function loadBeaches() {
   const raw = await fs.readFile(config.beachesFile, 'utf8');
   return JSON.parse(raw);
+}
+
+async function loadBeachMeta() {
+  if (beachMetaCache) return beachMetaCache;
+  try {
+    const raw = await fs.readFile(config.beachesMetaFile, 'utf8');
+    beachMetaCache = JSON.parse(raw);
+  } catch {
+    beachMetaCache = {};
+  }
+  return beachMetaCache;
 }
 
 async function loadBeachCams() {
@@ -26,6 +41,20 @@ async function loadBeachCams() {
     beachCamsCache = {};
   }
   return beachCamsCache;
+}
+
+function buildCameraPayload(cam) {
+  if (!cam?.available) return { available: false };
+  return {
+    available: true,
+    type: cam.type || 'external',
+    url: cam.url,
+    snapshotUrl: cam.snapshotUrl || null,
+    embedUrl: cam.embedUrl || null,
+    provider: cam.provider || 'Unknown',
+    refreshSeconds: cam.refreshSeconds || 90,
+    note: cam.note || null,
+  };
 }
 
 function pickFromMaps(stationId, bundle) {
@@ -73,7 +102,53 @@ function resolveUv(weather, bundle) {
   return fromMap?.uvIndex ?? null;
 }
 
-async function buildBeachRow(beach, bundle, xmlByName, xmlStations, cams) {
+function buildRowExtras(beach, scored, weather, water, uv, phenomenon, bundle, meta, cams, forecastMeta = {}) {
+  const trend = buildTrend({
+    windSpeed: weather.windSpeed,
+    precipitations: weather.precipitations,
+    phenomenon,
+    forecastPhenomenon: bundle?.dayForecastPhenomenon || forecastMeta.dayPhenomenon,
+    nightPhenomenon: forecastMeta.nightPhenomenon,
+  });
+
+  const crowd = estimateCrowd({
+    score: scored.score,
+    airTemp: weather.airTemperature,
+    waterTemp: water.value,
+    meta,
+  });
+
+  const sun = sunTimes(beach.lat, beach.lon);
+
+  return {
+    trend,
+    crowd,
+    sunlight: {
+      ...sun,
+      summary: buildSunlightSummary(sun),
+    },
+    amenities: meta
+      ? {
+          parking: meta.parking,
+          toilet: meta.toilet,
+          changingRoom: meta.changingRoom,
+          lifeguard: meta.lifeguard,
+          playground: meta.playground,
+          foodNearby: meta.foodNearby,
+          wheelchairAccess: meta.wheelchairAccess,
+          dogFriendly: meta.dogFriendly,
+          familyFriendly: meta.familyFriendly ?? scored.familyFriendly,
+          sheltered: meta.sheltered,
+          exposed: meta.exposed,
+          waterQuality: meta.waterQuality || 'unknown',
+        }
+      : null,
+    camera: buildCameraPayload(cams[beach.id]),
+  };
+}
+
+async function buildBeachRow(beach, bundle, xmlByName, xmlStations, cams, metaMap, forecastMeta = {}) {
+  const meta = metaMap[beach.id] || null;
   const nearest = await fetchNearestStation(beach.lat, beach.lon);
   let weather = nearest ? pickFromMaps(nearest.id, bundle) : null;
 
@@ -93,16 +168,19 @@ async function buildBeachRow(beach, bundle, xmlByName, xmlStations, cams) {
     marineSummary = parseWaveHeight(bundle.seaForecastText);
   }
 
-  const scored = scoreBeach({
-    airTemperature: weather.airTemperature,
-    waterTemperature: water.value,
-    windSpeed: weather.windSpeed,
-    windGust: weather.windGust,
-    precipitations: weather.precipitations,
-    phenomenon,
-    uvIndex: uv,
-    forecastPhenomenon: bundle.dayForecastPhenomenon,
-  });
+  const scored = scoreBeach(
+    {
+      airTemperature: weather.airTemperature,
+      waterTemperature: water.value,
+      windSpeed: weather.windSpeed,
+      windGust: weather.windGust,
+      precipitations: weather.precipitations,
+      phenomenon,
+      uvIndex: uv,
+      forecastPhenomenon: bundle.dayForecastPhenomenon,
+    },
+    meta
+  );
 
   const weatherSummary = buildWeatherSummary({
     airTemperature: weather.airTemperature,
@@ -116,7 +194,18 @@ async function buildBeachRow(beach, bundle, xmlByName, xmlStations, cams) {
     beachType: beach.type,
   });
 
-  const cam = cams[beach.id];
+  const extras = buildRowExtras(
+    beach,
+    scored,
+    weather,
+    water,
+    uv,
+    phenomenon,
+    bundle,
+    meta,
+    cams,
+    forecastMeta
+  );
 
   return {
     id: beach.id,
@@ -149,21 +238,98 @@ async function buildBeachRow(beach, bundle, xmlByName, xmlStations, cams) {
     score: scored.score,
     recommendation: scored.recommendation,
     reason: scored.reason,
+    familyFriendly: scored.familyFriendly,
     nearestStation: weather.officialName || weather.name || nearest?.name || '-',
     stationDistanceKm: nearest?.distanceKm ?? null,
     lastUpdated: weather.updatedAt || bundle.updatedAt,
-    camera: cam?.available
-      ? { available: true, type: cam.type, url: cam.url, provider: cam.provider }
-      : { available: false },
+    ...extras,
+  };
+}
+
+function buildXmlFallbackRow(beach, station, water, forecast, metaMap, cams) {
+  const meta = metaMap[beach.id] || null;
+  const merged = {
+    airTemperature: station?.airTemperature ?? null,
+    waterTemperature: water.value,
+    windSpeed: station?.windSpeed ?? null,
+    windGust: station?.windGust ?? null,
+    windDirection: station?.windDirection ?? null,
+    precipitations: station?.precipitations ?? null,
+    phenomenon: station?.phenomenon || '',
+    uvIndex: station?.uvIndex ?? null,
+    relativeHumidity: station?.relativeHumidity ?? null,
+    airPressure: station?.airPressure ?? null,
+    visibility: station?.visibility ?? null,
+  };
+  const phenomenon = merged.phenomenon || forecast.dayPhenomenon;
+  const scored = scoreBeach({ ...merged, phenomenon, forecastPhenomenon: forecast.dayPhenomenon }, meta);
+  const weatherSummary = buildWeatherSummary({
+    ...merged,
+    waterEstimated: water.estimated,
+    phenomenon,
+    cloudCover: scored.cloudCover,
+    beachType: beach.type,
+  });
+  const extras = buildRowExtras(
+    beach,
+    scored,
+    merged,
+    water,
+    merged.uvIndex,
+    phenomenon,
+    { dayForecastPhenomenon: forecast.dayPhenomenon },
+    meta,
+    cams,
+    forecast
+  );
+
+  return {
+    id: beach.id,
+    beach: beach.name,
+    region: beach.region,
+    type: beach.type,
+    lat: beach.lat,
+    lon: beach.lon,
+    distanceFromTallinnKm: Number(
+      haversineKm(config.tallinnLat, config.tallinnLon, beach.lat, beach.lon).toFixed(1)
+    ),
+    airTemp: merged.airTemperature,
+    waterTemp: water.value,
+    waterTempDisplay: water.display,
+    waterTempConfidence: water.confidence,
+    waterTempSource: water.source,
+    waterTempEstimated: water.estimated,
+    wind: merged.windSpeed,
+    gusts: merged.windGust,
+    direction: windDirectionLabel(merged.windDirection),
+    weather: weatherSummary,
+    weatherRaw: phenomenon,
+    rain: merged.precipitations,
+    uv: merged.uvIndex,
+    humidity: merged.relativeHumidity,
+    pressure: merged.airPressure,
+    visibility: merged.visibility,
+    cloudCover: scored.cloudCover,
+    wave: parseWaveHeight(forecast.seaText),
+    score: scored.score,
+    recommendation: scored.recommendation,
+    reason: scored.reason,
+    familyFriendly: scored.familyFriendly,
+    nearestStation: station?.name || '-',
+    stationDistanceKm: station?.distanceKm ?? null,
+    lastUpdated: new Date().toISOString(),
+    ...extras,
   };
 }
 
 async function syncBeachData() {
   const beaches = await loadBeaches();
   const cams = await loadBeachCams();
+  const metaMap = await loadBeachMeta();
   const warnings = [];
   let xmlStations = [];
   let xmlByName = new Map();
+  let forecastMeta = {};
 
   try {
     const observations = await fetchObservations();
@@ -174,6 +340,12 @@ async function syncBeachData() {
     logger.error('sync', 'XML observations failed', { error: error.message });
   }
 
+  try {
+    forecastMeta = await fetchForecasts();
+  } catch {
+    forecastMeta = {};
+  }
+
   let bundle;
   try {
     bundle = await fetchWeatherBundle();
@@ -182,96 +354,43 @@ async function syncBeachData() {
   } catch (error) {
     logger.error('sync', 'Public API failed', { error: error.message });
     warnings.push(`Public Envir API failed (${error.message}); falling back to XML feeds.`);
-    const forecast = await fetchForecasts();
-    const { pickNearest, pickNearestWaterStation } = require('../utils/geo');
+    const { pickNearest } = require('../utils/geo');
     const rows = beaches.map((beach) => {
       const station = pickNearest(xmlStations, beach.lat, beach.lon, {
         preferWaterTemp: beach.type !== 'lake',
         maxDistanceKm: beach.type === 'lake' ? 60 : 45,
       });
-      const waterStation =
-        pickNearestWaterStation(xmlStations, beach.lat, beach.lon, 100) || station;
-      const water = resolveWaterTemperature(beach, station, { coastalById: new Map(), inlandWaterById: new Map(), inlandMapById: new Map() }, xmlStations);
-      const merged = {
-        airTemperature: station?.airTemperature ?? null,
-        waterTemperature: water.value,
-        windSpeed: station?.windSpeed ?? null,
-        windGust: station?.windGust ?? null,
-        windDirection: station?.windDirection ?? null,
-        precipitations: station?.precipitations ?? null,
-        phenomenon: station?.phenomenon || '',
-        uvIndex: station?.uvIndex ?? null,
-        relativeHumidity: station?.relativeHumidity ?? null,
-        airPressure: station?.airPressure ?? null,
-        visibility: station?.visibility ?? null,
-      };
-      const scored = scoreBeach({ ...merged, forecastPhenomenon: forecast.dayPhenomenon });
-      const weatherSummary = buildWeatherSummary({
-        ...merged,
-        waterEstimated: water.estimated,
-        phenomenon: merged.phenomenon || forecast.dayPhenomenon,
-        cloudCover: scored.cloudCover,
-        beachType: beach.type,
-      });
-      const cam = cams[beach.id];
-      return {
-        id: beach.id,
-        beach: beach.name,
-        region: beach.region,
-        type: beach.type,
-        lat: beach.lat,
-        lon: beach.lon,
-        distanceFromTallinnKm: Number(
-          haversineKm(config.tallinnLat, config.tallinnLon, beach.lat, beach.lon).toFixed(1)
-        ),
-        airTemp: merged.airTemperature,
-        waterTemp: water.value,
-        waterTempDisplay: water.display,
-        waterTempConfidence: water.confidence,
-        waterTempSource: water.source,
-        waterTempEstimated: water.estimated,
-        wind: merged.windSpeed,
-        gusts: merged.windGust,
-        direction: windDirectionLabel(merged.windDirection),
-        weather: weatherSummary,
-        weatherRaw: merged.phenomenon || forecast.dayPhenomenon,
-        rain: merged.precipitations,
-        uv: merged.uvIndex,
-        humidity: merged.relativeHumidity,
-        pressure: merged.airPressure,
-        visibility: merged.visibility,
-        cloudCover: scored.cloudCover,
-        wave: parseWaveHeight(forecast.seaText),
-        score: scored.score,
-        recommendation: scored.recommendation,
-        reason: scored.reason,
-        nearestStation: station?.name || '-',
-        stationDistanceKm: station?.distanceKm ?? null,
-        lastUpdated: new Date().toISOString(),
-        camera: cam?.available ? { available: true, type: cam.type, url: cam.url, provider: cam.provider } : { available: false },
-      };
+      const water = resolveWaterTemperature(
+        beach,
+        station,
+        { coastalById: new Map(), inlandWaterById: new Map(), inlandMapById: new Map() },
+        xmlStations
+      );
+      return buildXmlFallbackRow(beach, station, water, forecastMeta, metaMap, cams);
     });
 
+    const finalized = applyGlobalScoringContext(rows);
     const payload = {
       syncedAt: new Date().toISOString(),
       observationSource: 'ilmateenistus-xml',
       observationUpdatedAt: new Date().toISOString(),
-      forecastDate: forecast.date,
+      forecastDate: forecastMeta.date,
       warnings,
-      count: rows.length,
-      beaches: rows,
+      count: finalized.length,
+      beaches: finalized,
     };
     await fs.mkdir(path.dirname(config.cacheFile), { recursive: true });
     await fs.writeFile(config.cacheFile, JSON.stringify(payload, null, 2), 'utf8');
-    logger.info('sync', 'Sync complete via XML fallback', { count: rows.length });
+    logger.info('sync', 'Sync complete via XML fallback', { count: finalized.length });
     return payload;
   }
 
   const rows = [];
   for (const beach of beaches) {
-    rows.push(await buildBeachRow(beach, bundle, xmlByName, xmlStations, cams));
+    rows.push(await buildBeachRow(beach, bundle, xmlByName, xmlStations, cams, metaMap, forecastMeta));
   }
 
+  const finalized = applyGlobalScoringContext(rows);
   const payload = {
     syncedAt: new Date().toISOString(),
     observationSource: bundle.source,
@@ -279,13 +398,13 @@ async function syncBeachData() {
     forecastDate: bundle.forecastDate,
     apiDocUrl: bundle.apiDocUrl,
     warnings,
-    count: rows.length,
-    beaches: rows,
+    count: finalized.length,
+    beaches: finalized,
   };
 
   await fs.mkdir(path.dirname(config.cacheFile), { recursive: true });
   await fs.writeFile(config.cacheFile, JSON.stringify(payload, null, 2), 'utf8');
-  logger.info('sync', 'Sync complete', { count: rows.length, source: bundle.source });
+  logger.info('sync', 'Sync complete', { count: finalized.length, source: bundle.source });
   return payload;
 }
 
@@ -302,4 +421,5 @@ module.exports = {
   syncBeachData,
   readCachedData,
   loadBeachCams,
+  loadBeachMeta,
 };

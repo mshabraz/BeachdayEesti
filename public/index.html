@@ -10,7 +10,7 @@
   <header class="header">
     <div>
       <h1>BeachdayEesti</h1>
-      <p class="subtitle">Should you go to the beach today? Compare all major Estonian sea and lake beaches.</p>
+      <p class="subtitle">Should you go to the beach today? Compare scores, trends, crowds, and cameras for every major Estonian beach.</p>
     </div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search beach, region, weather…" aria-label="Search beaches">
@@ -26,13 +26,19 @@
     </section>
 
     <div id="filters" class="filters" role="group" aria-label="Quick filters">
+      <button type="button" class="filter-btn" data-filter="best-today">Best today</button>
       <button type="button" class="filter-btn" data-filter="warm-water">Warm water</button>
-      <button type="button" class="filter-btn" data-filter="low-wind">Low wind</button>
-      <button type="button" class="filter-btn" data-filter="family">Family-friendly</button>
-      <button type="button" class="filter-btn" data-filter="hottest">Hottest today</button>
+      <button type="button" class="filter-btn" data-filter="lowest-wind">Lowest wind</button>
+      <button type="button" class="filter-btn" data-filter="warmest">Warmest</button>
+      <button type="button" class="filter-btn" data-filter="family">Family friendly</button>
+      <button type="button" class="filter-btn" data-filter="dog">Dog friendly</button>
+      <button type="button" class="filter-btn" data-filter="lifeguard">Lifeguard</button>
+      <button type="button" class="filter-btn" data-filter="food">Food nearby</button>
+      <button type="button" class="filter-btn" data-filter="parking">Parking</button>
+      <button type="button" class="filter-btn" data-filter="quiet">Quiet pick</button>
       <button type="button" class="filter-btn" data-filter="sea">Sea</button>
       <button type="button" class="filter-btn" data-filter="lake">Lake</button>
-      <button type="button" class="filter-btn filter-clear" data-filter="clear">Clear filters</button>
+      <button type="button" class="filter-btn" data-filter="clear">Clear filters</button>
     </div>
 
     <div class="table-wrap">
@@ -42,31 +48,48 @@
             <th data-key="beach">Beach</th>
             <th data-key="region">Region</th>
             <th data-key="type">Type</th>
-            <th data-key="airTemp">Air Temp</th>
-            <th data-key="waterTemp">Water Temp</th>
+            <th data-key="score">Score</th>
+            <th data-key="recommendation">Pick</th>
+            <th data-key="trend">Trend</th>
+            <th data-key="crowd">Crowd</th>
+            <th data-key="sunlight">Sun</th>
+            <th data-key="airTemp">Air</th>
+            <th data-key="waterTemp">Water</th>
             <th data-key="wind">Wind</th>
             <th data-key="gusts">Gusts</th>
-            <th data-key="direction">Direction</th>
+            <th data-key="direction">Dir</th>
             <th data-key="weather">Weather</th>
             <th data-key="rain">Rain</th>
             <th data-key="uv" id="uvHeader">UV</th>
-            <th data-key="score">Score</th>
-            <th data-key="recommendation">Recommendation</th>
             <th data-key="cam" class="no-sort">Cam</th>
-            <th data-key="lastUpdated">Last Updated</th>
+            <th data-key="lastUpdated">Updated</th>
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="15">Loading cached data…</td></tr>
+          <tr><td colspan="18">Loading cached data…</td></tr>
         </tbody>
       </table>
     </div>
     <p id="meta" class="meta"></p>
   </main>
 
+  <div id="camModal" class="modal" hidden aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="camModalTitle">
+      <div class="modal-header">
+        <h2 id="camModalTitle">Beach camera</h2>
+        <button type="button" class="modal-close" id="camModalClose" aria-label="Close">×</button>
+      </div>
+      <div id="camModalBody" class="modal-body"></div>
+      <div class="modal-footer">
+        <a id="camModalExternal" href="#" target="_blank" rel="noopener noreferrer">Open provider page</a>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
     Data: Estonian Environment Agency via publicapi.envir.ee. Manual sync primary; optional scheduled sync via SCHEDULED_SYNC_MINUTES.
-    <span class="deploy-marker">v1.0.3</span>
+    <span class="deploy-marker">v1.1.0</span>
   </footer>
 
   <script src="app.js"></script>
